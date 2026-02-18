@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Premium Daily Intelligence - Suntrenia</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 50px auto;
+        }
+        .hero {
+            background: white;
+            border-radius: 20px;
+            padding: 60px 40px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            margin-bottom: 30px;
+        }
+        .hero h1 {
+            font-size: 3em;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .hero .tagline {
+            font-size: 1.5em;
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 40px;
+        }
+        .pricing-card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            transition: transform 0.3s, box-shadow 0.3s;
+            position: relative;
+        }
+        .pricing-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .pricing-card.featured {
+            border: 3px solid #667eea;
+            transform: scale(1.05);
+        }
+        .pricing-card.featured::before {
+            content: '⭐ MOST POPULAR';
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #667eea;
+            color: white;
+            padding: 8px 20px;
+            border-radius: 50px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        .plan-name {
+            font-size: 1.8em;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .plan-price {
+            font-size: 3em;
+            font-weight: bold;
+            color: #667eea;
+            margin: 20px 0;
+        }
+        .plan-price span {
+            font-size: 0.4em;
+            color: #999;
+        }
+        .plan-features {
+            list-style: none;
+            margin: 30px 0;
+            text-align: left;
+        }
+        .plan-features li {
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+            color: #555;
+        }
+        .plan-features li:before {
+            content: '✅';
+            margin-right: 10px;
+        }
+        .plan-features li.unavailable {
+            color: #ccc;
+        }
+        .plan-features li.unavailable:before {
+            content: '❌';
+        }
+        .btn-subscribe {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 18px 40px;
+            font-size: 1.2em;
+            border-radius: 50px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            font-weight: bold;
+        }
+        .btn-subscribe:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+        .btn-subscribe.secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+        .comparison {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            margin-top: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        .comparison h2 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .comparison-table th, .comparison-table td {
+            padding: 15px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .comparison-table th {
+            background: #f8f9fa;
+            font-weight: bold;
+            color: #333;
+        }
+        .comparison-table td:first-child {
+            font-weight: 500;
+        }
+        .testimonials {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            margin-top: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        .testimonials h2 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .testimonial-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+        .testimonial {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+        .testimonial-text {
+            color: #555;
+            line-height: 1.6;
+            margin-bottom: 15px;
+            font-style: italic;
+        }
+        .testimonial-author {
+            font-weight: bold;
+            color: #333;
+        }
+        .testimonial-role {
+            color: #999;
+            font-size: 0.9em;
+        }
+        .guarantee {
+            text-align: center;
+            background: #fff3cd;
+            padding: 30px;
+            border-radius: 20px;
+            margin-top: 30px;
+            color: #856404;
+        }
+        .guarantee h3 {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="hero">
+            <h1>⚡ Premium Intelligence Service</h1>
+            <p class="tagline">Stay ahead with daily security briefings</p>
+        </div>
+
+        <div class="pricing-grid">
+            <!-- Free Plan -->
+            <div class="pricing-card">
+                <div class="plan-name">🆓 Free</div>
+                <div class="plan-price">$0<span>/month</span></div>
+                <ul class="plan-features">
+                    <li>Weekly intelligence reports</li>
+                    <li>Basic incident summaries</li>
+                    <li>State-level analysis</li>
+                    <li class="unavailable">Daily briefings</li>
+                    <li class="unavailable">Real-time alerts</li>
+                    <li class="unavailable">Custom reports</li>
+                    <li class="unavailable">Priority support</li>
+                </ul>
+                <button class="btn-subscribe secondary" onclick="window.location.href='/'">
+                    Current Plan
+                </button>
+            </div>
+
+            <!-- Premium Plan (Featured) -->
+            <div class="pricing-card featured">
+                <div class="plan-name">⭐ Premium</div>
+                <div class="plan-price">$15<span>/month</span></div>
+                <ul class="plan-features">
+                    <li>Daily intelligence briefings</li>
+                    <li>Real-time threat alerts</li>
+                    <li>Detailed AI analysis</li>
+                    <li>Custom regional reports</li>
+                    <li>Interactive dashboards</li>
+                    <li>Priority email support</li>
+                    <li>Cancel anytime</li>
+                </ul>
+                <button class="btn-subscribe" onclick="subscribe('premium')">
+                    🚀 Upgrade to Premium
+                </button>
+            </div>
+
+            <!-- Enterprise Plan -->
+            <div class="pricing-card">
+                <div class="plan-name">🏢 Enterprise</div>
+                <div class="plan-price">Custom</div>
+                <ul class="plan-features">
+                    <li>Everything in Premium</li>
+                    <li>Dedicated analyst support</li>
+                    <li>API access</li>
+                    <li>Custom integrations</li>
+                    <li>Team accounts (5+)</li>
+                    <li>White-label reports</li>
+                    <li>SLA guarantee</li>
+                </ul>
+                <button class="btn-subscribe secondary" onclick="window.location.href='mailto:enterprise@suntrenia.com'">
+                    📧 Contact Sales
+                </button>
+            </div>
+        </div>
+
+        <div class="comparison">
+            <h2>📊 Feature Comparison</h2>
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>Feature</th>
+                        <th>Free</th>
+                        <th>Premium</th>
+                        <th>Enterprise</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Weekly Reports</td>
+                        <td>✅</td>
+                        <td>✅</td>
+                        <td>✅</td>
+                    </tr>
+                    <tr>
+                        <td>Daily Briefings</td>
+                        <td>❌</td>
+                        <td>✅</td>
+                        <td>✅</td>
+                    </tr>
+                    <tr>
+                        <td>Real-time Alerts</td>
+                        <td>❌</td>
+                        <td>✅</td>
+                        <td>✅</td>
+                    </tr>
+                    <tr>
+                        <td>AI Analysis Depth</td>
+                        <td>Basic</td>
+                        <td>Advanced</td>
+                        <td>Expert</td>
+                    </tr>
+                    <tr>
+                        <td>Custom Reports</td>
+                        <td>❌</td>
+                        <td>Limited</td>
+                        <td>Unlimited</td>
+                    </tr>
+                    <tr>
+                        <td>Support</td>
+                        <td>Email</td>
+                        <td>Priority Email</td>
+                        <td>Dedicated</td>
+                    </tr>
+                    <tr>
+                        <td>API Access</td>
+                        <td>❌</td>
+                        <td>❌</td>
+                        <td>✅</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="testimonials">
+            <h2>💬 What Our Premium Members Say</h2>
+            <div class="testimonial-grid">
+                <div class="testimonial">
+                    <div class="testimonial-text">
+                        "The daily briefings have transformed how we monitor regional security. Worth every naira!"
+                    </div>
+                    <div class="testimonial-author">Adebayo O.</div>
+                    <div class="testimonial-role">Security Analyst, Lagos</div>
+                </div>
+                <div class="testimonial">
+                    <div class="testimonial-text">
+                        "Real-time alerts helped us avoid a potential security incident. Premium tier is essential for serious professionals."
+                    </div>
+                    <div class="testimonial-author">Chioma N.</div>
+                    <div class="testimonial-role">Corporate Security Manager</div>
+                </div>
+                <div class="testimonial">
+                    <div class="testimonial-text">
+                        "The AI-powered analysis saves me hours of research every week. Best investment for my consultancy."
+                    </div>
+                    <div class="testimonial-author">Ibrahim K.</div>
+                    <div class="testimonial-role">Security Consultant, Abuja</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="guarantee">
+            <h3>🛡️ 30-Day Money-Back Guarantee</h3>
+            <p>Not satisfied? Get a full refund within 30 days, no questions asked.</p>
+        </div>
+    </div>
+
+    <script>
+        function subscribe(plan) {
+            if (plan === 'premium') {
+                // Option 1: Redirect to Gumroad (Easiest)
+                // Sign up at gumroad.com and create a product
+                // window.location.href = 'https://gumroad.com/l/suntrenia-premium';
+                
+                // Option 2: Use Stripe (More professional)
+                // Sign up at stripe.com and get your payment link
+                // window.location.href = 'https://buy.stripe.com/your_payment_link';
+                
+                // Option 3: Paystack (Best for Nigeria)
+                // Sign up at paystack.com
+                window.location.href = 'https://paystack.com/pay/suntrenia-premium';
+                
+                // For now, show coming soon message
+                alert('🚀 Premium subscriptions launching soon!\n\nWe\'re setting up secure payment processing.\n\nJoin the waitlist by emailing: premium@suntrenia.com');
+            }
+        }
+    </script>
+</body>
+</html>

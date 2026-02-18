@@ -1,0 +1,44 @@
+{
+  "name": "nigeria-map-app",
+  "version": "1.0.0",
+  "description": "A Node.js app for rendering Nigeria map data with integrated services.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "echo \"No tests defined\" && exit 0"
+  },
+  "keywords": [
+    "nigeria",
+    "map",
+    "express",
+    "leaflet",
+    "docker"
+  ],
+  "author": "Kayode Fakorede",
+  "license": "ISC",
+  "dependencies": {
+    "canvas": "^2.11.2",    
+    "@getbrevo/brevo": "^3.0.1",
+    "axios": "^1.10.0",
+    "cheerio": "^1.1.2",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "form-data": "^4.0.5",
+    "leaflet": "^1.9.4",
+    "node-cache": "^5.1.2",
+    "node-cron": "^4.2.1",
+    "nodemailer": "^7.0.10",
+    "path": "^0.12.7",
+    "path-to-regexp": "^8.2.0",
+    "pdfkit": "^0.17.2",
+    "pdfkit-table": "^0.1.99",
+    "quickchart-js": "^3.1.3",
+    "rss-parser": "^3.13.0",
+    "sharp": "^0.34.2",
+    "svg-to-pdfkit": "^0.1.8",
+    "xml2js": "^0.6.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
