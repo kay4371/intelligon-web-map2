@@ -145,22 +145,66 @@
     <div class="security-badge"><p>🔒 Secured by Suntrenia • No spam guaranteed</p></div>
   </div>
   <script>
-    document.getElementById('downloadForm').addEventListener('submit', async (e) => {
+    document.getElementById('downloadForm').addEventListener('submit', function(e) {
       e.preventDefault();
       const email = document.getElementById('email').value;
       const reportId = new URLSearchParams(window.location.search).get('id') || 'latest';
-      
-      try {
-        await fetch('/api/cpa/track', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, reportId, timestamp: new Date().toISOString() })
-        });
-        
-        window.location.href = `/api/reports/download/${reportId}`;
-      } catch (error) {
-        alert('Error. Please try again.');
-      }
+      const btn = document.querySelector('.download-btn');
+
+      btn.disabled = true;
+      btn.textContent = '⏳ Sending report to your email...';
+
+      // ✅ Track CPA first
+      fetch('/api/cpa/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, reportId, action: 'report_requested', timestamp: new Date().toISOString() })
+      }).catch(function() {}); // Don't block if tracking fails
+
+      // ✅ Send report to email instead of direct download
+      fetch('/api/reports/send-to-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email, reportType: 'weekly' })
+      })
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        if (data.success) {
+          // ✅ Track successful delivery
+          fetch('/api/cpa/track', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, reportId, action: 'report_delivered', timestamp: new Date().toISOString() })
+          }).catch(function() {});
+
+          btn.textContent = '✅ Report sent! Check your inbox.';
+          btn.style.background = 'linear-gradient(135deg, #27ae60, #2ecc71)';
+          document.querySelector('.verification-box').innerHTML = `
+            <div style="padding: 20px; text-align: center;">
+              <div style="font-size: 3em;">📧</div>
+              <h3 style="color: #2ecc71; margin: 10px 0;">Report Sent!</h3>
+              <p style="color: #ffffff90;">We have sent your intelligence report to:</p>
+              <p style="color: #fff; font-weight: bold; margin-top: 8px;">${email}</p>
+              <p style="color: #ffffff60; font-size: 0.85em; margin-top: 10px;">Please check your inbox and spam folder.</p>
+              <div style="margin-top: 20px; padding: 15px; background: rgba(233,69,96,0.1); border: 1px solid rgba(233,69,96,0.3); border-radius: 12px;">
+                <p style="font-size: 0.85em; color: #ffffff90; margin-bottom: 10px;">🔔 <strong style="color:#fff;">Want this every week automatically?</strong></p>
+                <a href="/premium" style="display: inline-block; padding: 10px 24px; background: linear-gradient(135deg, #e94560, #f39c12); border-radius: 8px; color: #fff; font-weight: 600; font-size: 0.9em; text-decoration: none;">
+                  🚀 Subscribe to Weekly Updates
+                </a>
+              </div>
+            </div>
+          `;
+        } else {
+          btn.disabled = false;
+          btn.textContent = '📥 Download Report Now';
+          alert(data.error || 'Failed to send report. Please check your email and try again.');
+        }
+      })
+      .catch(function(err) {
+        btn.disabled = false;
+        btn.textContent = '📥 Download Report Now';
+        alert('Something went wrong. Please try again.');
+      });
     });
   </script>
 </body>
