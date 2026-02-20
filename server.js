@@ -1,3 +1,4 @@
+
 // ✅ 1. Load environment variables FIRST
 require('dotenv').config();
 const express = require('express');
@@ -60,8 +61,14 @@ const selectedWhatsAppGroups = new Set();
 
 // ✅ 4. Continue with the rest of your server code...
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.json());
-
+// app.use(express.json());
+app.use((req, res, next) => {
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; script-src 'self' 'unsafe-inline' https://js.paystack.co; frame-src https://checkout.paystack.com; connect-src 'self' https://api.paystack.co;"
+  );
+  next();
+});
 // Cache for 15 minutes
 const newsCache = new NodeCache({ stdTTL: 900 });
 const addWeeklySummaryRoute = require('./WeeklyReport');
