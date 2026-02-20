@@ -1,4 +1,5 @@
 
+
 // ✅ 1. Load environment variables FIRST
 require('dotenv').config();
 const express = require('express');
@@ -873,8 +874,8 @@ app.post('/api/cron/whatsapp-report', cronAuth, async (req, res) => {
       console.log('   ✅ Infographic sent');
       
       // Second: Send message with download link
-      const downloadUrl = `https://intelligon-web-map2.onrender.com/api/reports/download/${reportId}`;
-      // const downloadUrl = `https://intelligon-web-map-new-with-trigger.onrender.com/intelligence/download?id=${reportId}`;
+      const downloadUrl = `https://intelligon-web-map2.onrender.com/intelligence/download?id=${reportId}`;
+   
       const message = `📊 *FULL DETAILED REPORT AVAILABLE*\n\n` +
         `✨ Get the complete 7-page PDF report with:\n` +
         `• Detailed incident analysis\n` +
@@ -1243,11 +1244,20 @@ app.post('/api/reports/email', async (req, res) => {
 // ============================================
 app.get('/intelligence/download', (req, res) => {
   const reportId = req.query.id;
-  
-  if (!reportId || !global.reportCache?.[reportId]) {
+
+  if (!reportId) {
+    return res.status(404).send('Report not found');
+  }
+
+  // Check memory first, then disk
+  const inMemory = global.reportCache?.[reportId];
+  const onDisk = fs.existsSync(path.join(__dirname, 'reports', `${reportId}.pdf`));
+
+  if (!inMemory && !onDisk) {
     return res.status(404).send('Report not found or expired');
   }
-  
+
+  // ✅ Serve the email capture page — NOT the PDF directly
   res.sendFile(path.join(__dirname, 'public', 'download.html'));
 });
 
