@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -154,14 +155,12 @@
       btn.disabled = true;
       btn.textContent = '⏳ Sending report to your email...';
 
-      // ✅ Track CPA first
       fetch('/api/cpa/track', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, reportId, action: 'report_requested', timestamp: new Date().toISOString() })
-      }).catch(function() {}); // Don't block if tracking fails
+      }).catch(function() {});
 
-      // ✅ Send report to email instead of direct download
       fetch('/api/reports/send-to-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -170,7 +169,6 @@
       .then(function(res) { return res.json(); })
       .then(function(data) {
         if (data.success) {
-          // ✅ Track successful delivery
           fetch('/api/cpa/track', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -197,10 +195,10 @@
         } else {
           btn.disabled = false;
           btn.textContent = '📥 Download Report Now';
-          alert(data.error || 'Failed to send report. Please check your email and try again.');
+          alert(data.error || 'Failed to send. Please check your email and try again.');
         }
       })
-      .catch(function(err) {
+      .catch(function() {
         btn.disabled = false;
         btn.textContent = '📥 Download Report Now';
         alert('Something went wrong. Please try again.');
