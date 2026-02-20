@@ -1,8 +1,3 @@
-
-
-
-
-
 // ✅ 1. Load environment variables FIRST
 require('dotenv').config();
 const express = require('express');
@@ -1409,32 +1404,53 @@ async function addToBrevoList(email) {
 // ✅ Premium Subscription Endpoint
 // Saves to separate Brevo premium list (List ID 3)
 // ============================================
+// ============================================
+// ✅ Premium Subscription Endpoint
+// Verifies Paystack payment then saves to Brevo
+// ============================================
 app.post('/api/subscribe/premium', async (req, res) => {
   try {
-    const { email, name, plan = 'weekly' } = req.body;
+    const { email, name, plan = 'premium', paystackRef } = req.body;
 
     if (!email || !email.includes('@')) {
       return res.status(400).json({ success: false, error: 'Valid email required' });
     }
 
-    // Block disposable emails (reuses existing list)
-    const disposableDomains = [
-      'tempmail.com', 'throwaway.email', 'guerrillamail.com',
-      'mailinator.com', '10minutemail.com', 'temp-mail.org',
-      'fakeinbox.com', 'trashmail.com', 'getnada.com',
-      'maildrop.cc', 'yopmail.com', 'mohmal.com', 'sharklasers.com'
-    ];
-    const domain = email.split('@')[1]?.toLowerCase();
-    if (disposableDomains.includes(domain)) {
-      return res.status(400).json({ success: false, error: 'Disposable email not allowed' });
+    if (!paystackRef) {
+      return res.status(400).json({ success: false, error: 'Payment reference required' });
     }
 
-    console.log(`\n⭐ Premium subscription request: ${email} (${plan})`);
+    // ✅ Verify payment with Paystack API
+    console.log(`\n⭐ Verifying Paystack payment: ${paystackRef} for ${email}`);
+    const verifyResponse = await axios.get(
+      `https://api.paystack.co/transaction/verify/${paystackRef}`,
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`
+        }
+      }
+    );
 
-    // ✅ Add to general list (reuses existing addToBrevoList function)
+    const paystackData = verifyResponse.data;
+
+    // Check payment was actually successful
+    if (!paystackData.status || paystackData.data?.status !== 'success') {
+      console.warn(`⚠️ Payment verification failed for ref: ${paystackRef}`);
+      return res.status(400).json({ success: false, error: 'Payment verification failed' });
+    }
+
+    // Check email matches what was paid
+    if (paystackData.data?.customer?.email?.toLowerCase() !== email.toLowerCase()) {
+      console.warn(`⚠️ Email mismatch for ref: ${paystackRef}`);
+      return res.status(400).json({ success: false, error: 'Email mismatch with payment' });
+    }
+
+    console.log(`✅ Payment verified: ₦${paystackData.data.amount / 100} from ${email}`);
+
+    // ✅ Add to general Brevo list (reuses existing addToBrevoList)
     await addToBrevoList(email);
 
-    // ✅ Also add to premium list (List ID 3) using existing brevoContactsApi
+    // ✅ Add to premium list (List ID 3) using existing brevoContactsApi
     if (brevoContactsApi) {
       try {
         const createContact = new Brevo.CreateContact();
@@ -1443,12 +1459,13 @@ app.post('/api/subscribe/premium', async (req, res) => {
           FIRSTNAME: name || '',
           SUBSCRIBED_DATE: new Date().toISOString(),
           PLAN: plan,
+          PAYSTACK_REF: paystackRef,
           SOURCE: 'Premium Subscription Page'
         };
-        createContact.listIds = [2, 3]; // General list + Premium list
+        createContact.listIds = [2, 3]; // General + Premium lists
         createContact.updateEnabled = true;
         await brevoContactsApi.createContact(createContact);
-        console.log(`✅ Added to premium list: ${email}`);
+        console.log(`✅ Added to premium Brevo list: ${email}`);
       } catch (err) {
         if (!err.message?.includes('already exists')) {
           console.warn('⚠️ Brevo premium list error:', err.message);
@@ -1461,32 +1478,34 @@ app.post('/api/subscribe/premium', async (req, res) => {
       try {
         const sendSmtpEmail = new Brevo.SendSmtpEmail();
         sendSmtpEmail.to = [{ email, name: name || 'Subscriber' }];
-        sendSmtpEmail.subject = '🛡️ Welcome to Suntrenia Intelligence — You\'re In!';
+        sendSmtpEmail.subject = '🛡️ Welcome to Suntrenia Premium — You\'re In!';
         sendSmtpEmail.htmlContent = `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1a2e; color: #fff; padding: 40px; border-radius: 12px;">
             <h1 style="color: #e94560; text-align: center;">SUNTRENIA</h1>
-            <h2 style="text-align: center; color: #fff;">Welcome, ${name || 'Subscriber'}! 🎉</h2>
-            <p style="color: #ffffff90; line-height: 1.6;">You've successfully subscribed to Suntrenia Intelligence weekly reports. Every week you'll receive:</p>
-            <ul style="color: #ffffff90; line-height: 2;">
-              <li>📊 Full security incident analysis</li>
+            <h2 style="text-align: center; color: #fff;">Welcome to Premium, ${name || 'Subscriber'}! 🎉</h2>
+            <p style="color: #ffffff90; line-height: 1.6; margin-bottom: 20px;">Your payment of ₦${paystackData.data.amount / 100} has been confirmed. You now have full premium access.</p>
+            <p style="color: #ffffff90; line-height: 1.6;">Every week you'll automatically receive:</p>
+            <ul style="color: #ffffff90; line-height: 2; margin: 15px 0;">
+              <li>📊 Full weekly intelligence report (PDF)</li>
               <li>🗺️ Nigeria state-by-state threat map</li>
-              <li>🤖 AI-powered briefings</li>
+              <li>🤖 AI-powered security briefings</li>
               <li>📈 Trend data & forecasts</li>
+              <li>⚡ Daily briefings (coming soon)</li>
             </ul>
-            <p style="color: #ffffff60; font-size: 0.85em; margin-top: 30px; text-align: center;">
-              You can unsubscribe at any time. Reply to this email for support.
+            <p style="color: #ffffff80; font-size: 0.85em; margin-top: 15px;">Payment Reference: ${paystackRef}</p>
+            <p style="color: #ffffff60; font-size: 0.8em; margin-top: 30px; text-align: center;">
+              To cancel or get support, reply to this email.<br>30-day money-back guarantee applies.
             </p>
           </div>
         `;
-        sendSmtpEmail.sender = { 
-          name: process.env.EMAIL_FROM_NAME || 'Suntrenia Intelligence', 
-          email: process.env.EMAIL_FROM || process.env.EMAIL_USER 
+        sendSmtpEmail.sender = {
+          name: process.env.EMAIL_FROM_NAME || 'Suntrenia Intelligence',
+          email: process.env.EMAIL_FROM || process.env.EMAIL_USER
         };
         await brevoApiInstance.sendTransacEmail(sendSmtpEmail);
         console.log(`✅ Welcome email sent to: ${email}`);
       } catch (err) {
-        console.warn('⚠️ Welcome email failed:', err.message);
-        // Don't fail the subscription if welcome email fails
+        console.warn('⚠️ Welcome email failed (non-fatal):', err.message);
       }
     }
 
@@ -1496,18 +1515,21 @@ app.post('/api/subscribe/premium', async (req, res) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email,
-        action: 'premium_subscription',
+        action: 'premium_payment_confirmed',
+        paystackRef,
+        amount: paystackData.data.amount / 100,
         timestamp: new Date().toISOString()
       })
     }).catch(() => {});
 
-    res.json({ 
-      success: true, 
-      message: `Subscribed! Weekly reports will be sent to ${email}` 
+    console.log(`⭐ Premium activation complete for: ${email}`);
+    res.json({
+      success: true,
+      message: `Premium activated! Reports will be sent to ${email}`
     });
 
   } catch (error) {
-    console.error('❌ Premium subscription error:', error);
+    console.error('❌ Premium subscription error:', error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
