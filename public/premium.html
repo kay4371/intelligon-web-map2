@@ -387,7 +387,7 @@ function subscribe(plan) {
         { display_name: 'Name', variable_name: 'name', value: name }
       ]
     },
-    callback: async function(response) {
+    callback: function(response) {
       // Payment successful — verify and save subscriber
       console.log('✅ Payment successful. Ref:', response.reference);
 
@@ -397,7 +397,7 @@ function subscribe(plan) {
 
       try {
         // ✅ Verify payment + save subscriber on backend
-        const result = await fetch('/api/subscribe/premium', {
+        const result = fetch('/api/subscribe/premium', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -408,7 +408,7 @@ function subscribe(plan) {
           })
         });
 
-        const data = await result.json();
+        const data =  result.json();
 
         if (data.success) {
           // Show success message
