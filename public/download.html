@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Download Intelligence Report - Suntrenia</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      color: #fff;
+    }
+    .container {
+      max-width: 500px;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      border-radius: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 40px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+    .logo h1 {
+      text-align: center;
+      font-size: 2.5em;
+      background: linear-gradient(135deg, #e94560, #f39c12);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 5px;
+    }
+    .logo p { text-align: center; color: #a8dadc; font-size: 0.9em; }
+    .doc-icon { text-align: center; font-size: 4em; margin: 20px 0; }
+    .info-box {
+      background: rgba(233, 69, 96, 0.1);
+      border: 1px solid rgba(233, 69, 96, 0.3);
+      border-radius: 16px;
+      padding: 20px;
+      margin: 25px 0;
+    }
+    .info-box h3 { color: #e94560; font-size: 1.1em; margin-bottom: 15px; }
+    .info-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .info-item:last-child { border-bottom: none; }
+    .verification-box {
+      background: rgba(255, 255, 255, 0.05);
+      border: 2px dashed rgba(168, 218, 220, 0.3);
+      border-radius: 16px;
+      padding: 25px;
+      text-align: center;
+      margin: 25px 0;
+    }
+    .input-group { margin: 15px 0; }
+    .input-group label {
+      display: block;
+      text-align: left;
+      margin-bottom: 8px;
+      color: #ffffff90;
+      font-size: 0.9em;
+    }
+    .input-group input {
+      width: 100%;
+      padding: 14px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      color: #fff;
+      font-size: 1em;
+    }
+    .input-group input:focus {
+      outline: none;
+      border-color: #e94560;
+      background: rgba(255, 255, 255, 0.08);
+    }
+    .checkbox-group {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      text-align: left;
+      margin: 15px 0;
+      font-size: 0.85em;
+      color: #ffffff80;
+    }
+    .download-btn {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #e94560, #f39c12);
+      border: none;
+      border-radius: 12px;
+      color: #fff;
+      font-size: 1.1em;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 20px;
+    }
+    .download-btn:hover { transform: translateY(-2px); }
+    .security-badge {
+      text-align: center;
+      margin-top: 25px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      font-size: 0.8em;
+      color: #ffffff60;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">
+      <h1>SUNTRENIA</h1>
+      <p>Intelligence & Security</p>
+    </div>
+    <div class="doc-icon">📄</div>
+    <div class="info-box">
+      <h3>📊 Weekly Intelligence Report</h3>
+      <div class="info-item"><span>📑</span><span>7 pages of detailed analysis</span></div>
+      <div class="info-item"><span>🗺️</span><span>Interactive security maps</span></div>
+      <div class="info-item"><span>🤖</span><span>AI-powered insights</span></div>
+      <div class="info-item"><span>💯</span><span>100% FREE download</span></div>
+    </div>
+    <form id="downloadForm">
+      <div class="verification-box">
+        <h3>🔐 Quick verification to prevent bots</h3>
+        <div class="input-group">
+          <label>Email address (for download link)</label>
+          <input type="email" id="email" placeholder="your@email.com" required>
+        </div>
+        <div class="checkbox-group">
+          <input type="checkbox" id="consent" required>
+          <label for="consent">I agree to receive security updates (unsubscribe anytime)</label>
+        </div>
+      </div>
+      <button type="submit" class="download-btn">📥 Download Report Now</button>
+    </form>
+    <div class="security-badge"><p>🔒 Secured by Suntrenia • No spam guaranteed</p></div>
+  </div>
+  <script>
+    document.getElementById('downloadForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('email').value;
+      const reportId = new URLSearchParams(window.location.search).get('id') || 'latest';
+      
+      try {
+        await fetch('/api/cpa/track', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, reportId, timestamp: new Date().toISOString() })
+        });
+        
+        window.location.href = `/api/reports/download/${reportId}`;
+      } catch (error) {
+        alert('Error. Please try again.');
+      }
+    });
+  </script>
+</body>
+</html>

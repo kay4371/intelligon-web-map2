@@ -1,0 +1,413 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Get Your FREE Intelligence Report - Suntrenia</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 50px auto;
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .hero {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        .hero h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        .hero p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        .content {
+            padding: 40px;
+        }
+        .benefits {
+            list-style: none;
+            margin: 30px 0;
+        }
+        .benefits li {
+            padding: 15px;
+            margin: 10px 0;
+            background: #f8f9fa;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+        }
+        .benefits li:before {
+            content: '✅';
+            margin-right: 15px;
+            font-size: 1.5em;
+        }
+        .form-group {
+            margin: 20px 0;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #333;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .form-group input.invalid {
+            border-color: #dc3545;
+        }
+        .form-group input.valid {
+            border-color: #28a745;
+        }
+        .email-hint {
+            font-size: 0.85em;
+            margin-top: 5px;
+            color: #666;
+        }
+        .email-hint.error {
+            color: #dc3545;
+        }
+        .email-hint.success {
+            color: #28a745;
+        }
+        .delivery-notice {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+        .delivery-notice strong {
+            color: #1976D2;
+        }
+        .btn-cta {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 18px 40px;
+            font-size: 1.2em;
+            border-radius: 50px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn-cta:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+        .btn-cta:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            background: #ccc;
+        }
+        .guarantee {
+            text-align: center;
+            margin-top: 20px;
+            padding: 20px;
+            background: #fff3cd;
+            border-radius: 10px;
+            color: #856404;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            display: none;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            display: block;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            display: block;
+        }
+        .status.loading {
+            background: #d1ecf1;
+            color: #0c5460;
+            display: block;
+        }
+        .trust-badges {
+            display: flex;
+            justify-content: space-around;
+            margin: 30px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        .trust-badge {
+            text-align: center;
+        }
+        .trust-badge-icon {
+            font-size: 2em;
+            margin-bottom: 5px;
+        }
+        .trust-badge-text {
+            font-size: 0.9em;
+            color: #666;
+        }
+        .social-proof {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .social-proof-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .social-proof-text {
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="hero">
+            <h1>🛡️ FREE Intelligence Report</h1>
+            <p>Delivered Directly to Your Inbox</p>
+        </div>
+        
+        <div class="content">
+            <h2>📧 Get Your Report via Email:</h2>
+            
+            <div class="delivery-notice">
+                <strong>📬 Instant Email Delivery:</strong> Your comprehensive 7-page intelligence report will be sent directly to your email within 60 seconds. Make sure to check your spam folder!
+            </div>
+            
+            <ul class="benefits">
+                <li>7-page detailed PDF intelligence report</li>
+                <li>AI-powered security analysis</li>
+                <li>Interactive maps and charts</li>
+                <li>State-by-state incident breakdown</li>
+                <li>Weekly trend analysis</li>
+            </ul>
+            
+            <div class="social-proof">
+                <div class="social-proof-number">500+</div>
+                <div class="social-proof-text">Intelligence professionals already subscribed</div>
+            </div>
+            
+            <div class="trust-badges">
+                <div class="trust-badge">
+                    <div class="trust-badge-icon">🔐</div>
+                    <div class="trust-badge-text">Secure</div>
+                </div>
+                <div class="trust-badge">
+                    <div class="trust-badge-icon">📧</div>
+                    <div class="trust-badge-text">Email Only</div>
+                </div>
+                <div class="trust-badge">
+                    <div class="trust-badge-icon">✅</div>
+                    <div class="trust-badge-text">Verified</div>
+                </div>
+            </div>
+            
+            <form id="downloadForm" onsubmit="handleSubmit(event)">
+                <div class="form-group">
+                    <label for="email">📧 Enter Your Email Address:</label>
+                    <input type="email" id="email" name="email" required 
+                           placeholder="your@email.com"
+                           onblur="validateEmail()"
+                           oninput="clearValidation()">
+                    <div id="emailHint" class="email-hint">We'll send your report to this email address</div>
+                </div>
+                
+                <button type="submit" class="btn-cta" id="submitBtn" disabled>
+                    📥 Verifying Email...
+                </button>
+            </form>
+            
+            <div id="status" class="status"></div>
+            
+            <div class="guarantee">
+                🔒 100% Free • No Spam • Check Your Inbox • Real Emails Only
+            </div>
+            
+            <div style="text-align: center; margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 10px;">
+                <p style="color: #666; font-size: 0.9em;">
+                    💡 <strong>Want daily intelligence updates?</strong><br>
+                    After you receive your report, you'll have the option to upgrade to our premium daily intelligence service for just $15/month.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let emailValid = false;
+        
+        function clearValidation() {
+            const emailInput = document.getElementById('email');
+            const emailHint = document.getElementById('emailHint');
+            const submitBtn = document.getElementById('submitBtn');
+            
+            emailInput.classList.remove('valid', 'invalid');
+            emailHint.textContent = "We'll send your report to this email address";
+            emailHint.className = 'email-hint';
+            submitBtn.disabled = true;
+            submitBtn.textContent = '📥 Verifying Email...';
+            emailValid = false;
+        }
+        
+        async function validateEmail() {
+            const emailInput = document.getElementById('email');
+            const emailHint = document.getElementById('emailHint');
+            const submitBtn = document.getElementById('submitBtn');
+            const email = emailInput.value.trim();
+            
+            if (!email) return;
+            
+            // Basic format check
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                emailInput.classList.add('invalid');
+                emailHint.textContent = '❌ Invalid email format';
+                emailHint.className = 'email-hint error';
+                submitBtn.disabled = true;
+                return;
+            }
+            
+            // Show loading
+            emailHint.textContent = '🔄 Verifying email...';
+            emailHint.className = 'email-hint';
+            submitBtn.disabled = true;
+            
+            try {
+                const response = await fetch('/api/verify-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                
+                const result = await response.json();
+                
+                if (result.valid) {
+                    emailInput.classList.remove('invalid');
+                    emailInput.classList.add('valid');
+                    emailHint.textContent = '✅ Email verified! Your report will be sent here.';
+                    emailHint.className = 'email-hint success';
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = '📧 Send Report to My Email';
+                    emailValid = true;
+                } else {
+                    emailInput.classList.remove('valid');
+                    emailInput.classList.add('invalid');
+                    emailHint.textContent = `❌ ${result.reason || 'Invalid email'}. Please use a real email address to receive your report.`;
+                    emailHint.className = 'email-hint error';
+                    submitBtn.disabled = true;
+                    emailValid = false;
+                }
+                
+            } catch (error) {
+                console.error('Verification error:', error);
+                // Fail open - allow submission if verification fails
+                emailInput.classList.add('valid');
+                emailHint.textContent = '⚠️ Could not verify, but we\'ll try to send your report...';
+                emailHint.className = 'email-hint';
+                submitBtn.disabled = false;
+                submitBtn.textContent = '📧 Send Report to My Email';
+                emailValid = true;
+            }
+        }
+        
+        async function handleSubmit(event) {
+            event.preventDefault();
+            
+            if (!emailValid) {
+                await validateEmail();
+                if (!emailValid) return;
+            }
+            
+            const form = document.getElementById('downloadForm');
+            const btn = document.getElementById('submitBtn');
+            const status = document.getElementById('status');
+            const email = document.getElementById('email').value.trim();
+            
+            btn.disabled = true;
+            btn.textContent = '⏳ Generating & Sending Report...';
+            status.className = 'status loading';
+            status.textContent = '🔄 Please wait... Generating your personalized intelligence report and sending it to your email. This may take 30-60 seconds.';
+            
+            try {
+                // Send report to email
+                const response = await fetch('/api/reports/send-to-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        email,
+                        reportType: 'weekly',
+                        source: 'landing_page'
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    status.className = 'status success';
+                    status.innerHTML = `
+                        <strong>✅ Success! Your report has been sent!</strong><br><br>
+                        📧 Check your inbox: <strong>${email}</strong><br>
+                        ⏱️ Should arrive within 1-2 minutes<br>
+                        📁 Don't forget to check your spam/junk folder!<br><br>
+                        💡 <strong>Next:</strong> Watch for our weekly intelligence updates!
+                    `;
+                    
+                    // Track successful conversion
+                    await fetch('/api/cpa/track', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            email,
+                            action: 'report_delivered',
+                            timestamp: new Date().toISOString()
+                        })
+                    }).catch(e => console.log('Tracking failed:', e));
+                    
+                    // Disable form
+                    form.querySelector('input').disabled = true;
+                    btn.style.display = 'none';
+                    
+                } else {
+                    throw new Error(result.error || 'Failed to send report');
+                }
+                
+            } catch (error) {
+                status.className = 'status error';
+                status.textContent = `❌ ${error.message}. Please try again or contact support if the problem persists.`;
+                btn.disabled = false;
+                btn.textContent = '📧 Send Report to My Email';
+                console.error(error);
+            }
+        }
+    </script>
+</body>
+</html>
