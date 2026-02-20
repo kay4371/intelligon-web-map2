@@ -1,8 +1,3 @@
-
-
-
-
-
 // ✅ 1. Load environment variables FIRST
 require('dotenv').config();
 const express = require('express');
@@ -646,12 +641,32 @@ app.post('/api/cron/email-report', cronAuth, async (req, res) => {
       // Ensure server is ready
       await waitForServerReady(30000);
       
-      const recipients = process.env.REPORT_EMAIL_RECIPIENTS;
-      if (!recipients) {
-        throw new Error('REPORT_EMAIL_RECIPIENTS not configured');
+      // ✅ Get manual recipients from .env
+      const manualRecipients = process.env.REPORT_EMAIL_RECIPIENTS
+        ? process.env.REPORT_EMAIL_RECIPIENTS.split(',').map(e => e.trim()).filter(e => e)
+        : [];
+
+      // ✅ Also fetch subscribers from Brevo list (reuses existing brevoContactsApi)
+      let brevoSubscribers = [];
+      if (brevoContactsApi) {
+        try {
+          const contactsResponse = await brevoContactsApi.getContactsFromList(2, undefined, 500);
+          brevoSubscribers = (contactsResponse.body?.contacts || [])
+            .map(c => c.email)
+            .filter(e => e);
+          console.log(`📋 Brevo subscribers fetched: ${brevoSubscribers.length}`);
+        } catch (err) {
+          console.warn('⚠️ Could not fetch Brevo subscribers:', err.message);
+        }
       }
-      
-      const emailList = recipients.split(',').map(e => e.trim()).filter(e => e);
+
+      // ✅ Merge both lists, remove duplicates
+      const emailList = [...new Set([...manualRecipients, ...brevoSubscribers])];
+
+      if (emailList.length === 0) {
+        throw new Error('No recipients configured — add REPORT_EMAIL_RECIPIENTS to .env or get subscribers');
+      }
+
       console.log(`📬 Sending to ${emailList.length} recipient(s): ${emailList.join(', ')}`);
       
       const results = [];
@@ -731,6 +746,7 @@ app.post('/api/cron/email-report', cronAuth, async (req, res) => {
       console.log(`\n📊 Email Report Summary:`);
       console.log(`   ✅ Sent: ${successCount}/${emailList.length}`);
       console.log(`   ❌ Failed: ${emailList.length - successCount}`);
+      console.log(`   📋 Manual: ${manualRecipients.length} | Brevo: ${brevoSubscribers.length}`);
       console.log('========================================\n');
       
     } catch (error) {
@@ -769,24 +785,40 @@ app.post('/api/cron/whatsapp-report', cronAuth, async (req, res) => {
         axios.get('http://localhost:3000/api/incident-summary').then(r => r.data),
         axios.get('http://localhost:3000/api/state-severity').then(r => r.data)
       ]).then(results => results.map(r => r.status === 'fulfilled' ? r.value : {}));
-      
+
+      console.log(`   ✅ Collected: ${news.length} incidents`);
+
+      // Get AI briefing
+      let aiBriefing = '';
+      try {
+        const briefingRes = await axios.get('http://localhost:3000/api/briefing/weekly', { timeout: 25000 });
+        aiBriefing = briefingRes.data.briefing;
+      } catch (err) {
+        aiBriefing = 'AI briefing generation timed out.';
+      }
+
+      // Prepare all data BEFORE building reportData
+      const mapSvg = await getMapSvgWithSeverity().catch(() => '');
+      const stateData = prepareStateDataForPDF(severityData);
+      const trendData = prepareTrendDataForPDF(news);
+      const categoryData = prepareCategoryDataForPDF(news);
+
       const reportData = {
         incidents: news,
         statesAffected: affectedStates.affected?.length || 0,
         affectedStates: affectedStates.affected || [],
         affectedStateNames: (affectedStates.affected || []).map(code => STATE_NAME_MAP[code] || code),
         casualties: incidentSummary.fatalities || 0,
-        abductions: incidentSummary.abducted || 0
+        abductions: incidentSummary.abducted || 0,
+        aiBriefing,
+        mapSvg,
+        stateData,
+        trendData,
+        categoryData
       };
-      
-      console.log(`   ✅ Collected: ${news.length} incidents`);
       
       // Generate PDF (for download)
       console.log('📄 Step 2/4: Generating PDF report...');
-      const stateData = prepareStateDataForPDF(severityData);
-      const trendData = prepareTrendDataForPDF(news);
-      const categoryData = prepareCategoryDataForPDF(news);
-      
       const doc = await pdfService.generateEnhancedReport(reportData, {
         includeAIAnalysis: true,
         reportType: 'weekly'
@@ -799,12 +831,20 @@ app.post('/api/cron/whatsapp-report', cronAuth, async (req, res) => {
       // Save PDF temporarily for downloads
       const reportId = `report-${Date.now()}`;
       global.reportCache = global.reportCache || {};
+      // global.reportCache[reportId] = {
+      //   buffer: pdfBuffer,
+      //   createdAt: Date.now(),
+      //   reportData: reportData
+      // };
+      // Save to disk so it survives restarts
+      const reportsDir = path.join(__dirname, 'reports');
+      if (!fs.existsSync(reportsDir)) fs.mkdirSync(reportsDir);
+      fs.writeFileSync(path.join(reportsDir, `${reportId}.pdf`), pdfBuffer);
+
       global.reportCache[reportId] = {
         buffer: pdfBuffer,
-        createdAt: Date.now(),
-        reportData: reportData
+        createdAt: Date.now()
       };
-      
       // Generate beautiful infographic
       console.log('🎨 Step 3/4: Creating infographic...');
       const infographicBuffer = await infographicGen.generateInfographic(reportData);
@@ -826,7 +866,8 @@ app.post('/api/cron/whatsapp-report', cronAuth, async (req, res) => {
       console.log('   ✅ Infographic sent');
       
       // Second: Send message with download link
-      const downloadUrl = `https://intelligon-web-map-new-with-trigger.onrender.com/intelligence/download?id=${reportId}`;
+      const downloadUrl = `https://intelligon-web-map2.onrender.com/api/reports/download/${reportId}`;
+      // const downloadUrl = `https://intelligon-web-map-new-with-trigger.onrender.com/intelligence/download?id=${reportId}`;
       const message = `📊 *FULL DETAILED REPORT AVAILABLE*\n\n` +
         `✨ Get the complete 7-page PDF report with:\n` +
         `• Detailed incident analysis\n` +
@@ -852,172 +893,6 @@ app.post('/api/cron/whatsapp-report', cronAuth, async (req, res) => {
     }
   })();
 });
-// app.post('/api/cron/whatsapp-report', cronAuth, async (req, res) => {
-//   const startTime = Date.now();
-  
-//   console.log('\n📱 ========================================');
-//   console.log('⏰ CRON TRIGGERED: WhatsApp Report');
-//   console.log('========================================');
-//   console.log(`⏰ Time: ${new Date().toLocaleString('en-NG', { timeZone: 'Africa/Lagos' })} WAT`);
-//   console.log(`📍 Intelligence Source: ${INTELLIGENCE_SOURCE_GROUP}`);
-//   console.log(`📍 Report Target: ${WHATSAPP_REPORT_RECIPIENT}`);
-  
-//   // ✅ RESPOND IMMEDIATELY (within 10 seconds)
-//   res.status(202).json({
-//     success: true,
-//     message: 'WhatsApp report job accepted and processing',
-//     jobId: `report-${Date.now()}`,
-//     timestamp: new Date().toISOString(),
-//     estimatedTime: '60-120 seconds'
-//   });
-  
-//   // ✅ PROCESS IN BACKGROUND (won't timeout)
-//   (async () => {
-//     try {
-//       console.log('🔄 Background processing started...');
-      
-//       // Wait for server ready
-//       await waitForServerReady(30000);
-      
-//       // Validate recipient
-//       if (!WHATSAPP_REPORT_RECIPIENT) {
-//         throw new Error('WHATSAPP_REPORT_RECIPIENT not configured');
-//       }
-      
-//       console.log(`📱 Generating report for: ${WHATSAPP_REPORT_RECIPIENT}`);
-      
-//       // ===== STEP 1: Generate PDF =====
-//       console.log('   → Step 1/3: Generating PDF...');
-      
-//       const [news, affectedStates, incidentSummary, severityData] = await Promise.allSettled([
-//         scrapeAllSources(),
-//         axios.get('http://localhost:3000/api/affected-states').then(r => r.data),
-//         axios.get('http://localhost:3000/api/incident-summary').then(r => r.data),
-//         axios.get('http://localhost:3000/api/state-severity').then(r => r.data)
-//       ]).then(results => results.map(r => r.status === 'fulfilled' ? r.value : {}));
-      
-//       console.log(`   ✅ Collected ${news.length || 0} incidents`);
-      
-//       // Get AI briefing with timeout
-//       let aiBriefing = 'Intelligence briefing generated from collected data.';
-//       try {
-//         const briefingRes = await Promise.race([
-//           axios.get('http://localhost:3000/api/briefing/weekly'),
-//           new Promise((_, reject) => 
-//             setTimeout(() => reject(new Error('Timeout')), 20000)
-//           )
-//         ]);
-//         aiBriefing = briefingRes.data.briefing;
-//       } catch (err) {
-//         console.warn('   ⚠️ AI briefing skipped (timeout)');
-//       }
-      
-//       const stateData = prepareStateDataForPDF(severityData);
-//       const trendData = prepareTrendDataForPDF(news);
-//       const categoryData = prepareCategoryDataForPDF(news);
-      
-//       // Skip map SVG if it takes too long
-//       let mapSvg = '';
-//       try {
-//         mapSvg = await Promise.race([
-//           getMapSvgWithSeverity(),
-//           new Promise((_, reject) => 
-//             setTimeout(() => reject(new Error('Timeout')), 15000)
-//           )
-//         ]);
-//       } catch (err) {
-//         console.warn('   ⚠️ Map SVG skipped (timeout)');
-//       }
-      
-//       const affectedStateNames = (affectedStates.affected || [])
-//         .map(code => STATE_NAME_MAP[code] || code);
-      
-//       const reportData = {
-//         incidents: news,
-//         aiBriefing,
-//         statesAffected: affectedStates.affected?.length || 0,
-//         affectedStates: affectedStates.affected || [],
-//         affectedStateNames,
-//         casualties: incidentSummary.fatalities || 0,
-//         abductions: incidentSummary.abducted || 0,
-//         stateData,
-//         trendData,
-//         categoryData,
-//         mapSvg
-//       };
-      
-//       const doc = await pdfService.generateEnhancedReport(reportData, {
-//         includeAIAnalysis: true,
-//         reportType: 'weekly'
-//       });
-      
-//       const pdfBuffer = await pdfService.streamToBuffer(doc);
-//       const pdfSizeMB = (pdfBuffer.length / 1024 / 1024).toFixed(2);
-//       console.log(`   ✅ PDF generated (${pdfSizeMB} MB)`);
-      
-//       // ===== STEP 2: Send via WhatsApp =====
-//       console.log('   → Step 2/3: Sending via WhatsApp...');
-      
-//       const filename = `suntrenia-report-${Date.now()}.pdf`;
-//       const caption = `🛡️ *SUNTRENIA INTELLIGENCE REPORT*\n\n` +
-//         `📅 Period: ${new Date(Date.now() - 3*24*60*60*1000).toLocaleDateString()} - ${new Date().toLocaleDateString()}\n\n` +
-//         `📊 *Key Metrics:*\n` +
-//         `• Total Incidents: ${news.length}\n` +
-//         `• States Affected: ${reportData.statesAffected}\n` +
-//         `• Casualties: ${reportData.casualties}\n` +
-//         `• Abductions: ${reportData.abductions}\n\n` +
-//         `📎 Full intelligence report attached.\n\n` +
-//         `⚠️ CLASSIFICATION: CONFIDENTIAL`;
-      
-//       // Send document
-//       const sendResult = await whatsappService.sendDocumentWithPDF(
-//         WHATSAPP_REPORT_RECIPIENT,
-//         pdfBuffer,
-//         filename,
-//         caption
-//       );
-      
-//       const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
-      
-//       console.log(`   ✅ Message sent successfully!`);
-//       console.log(`\n📊 WhatsApp Report Summary:`);
-//       console.log(`   ✅ Recipient: ${WHATSAPP_REPORT_RECIPIENT}`);
-//       console.log(`   📄 PDF Size: ${pdfSizeMB} MB`);
-//       console.log(`   📱 Message ID: ${sendResult.id}`);
-//       console.log(`   📊 Incidents: ${news.length}`);
-//       console.log(`   ⏱️  Total Time: ${totalTime}s`);
-//       console.log('========================================\n');
-      
-//     } catch (error) {
-//       const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
-//       console.error('\n❌ ========================================');
-//       console.error('WHATSAPP REPORT FAILED');
-//       console.error('========================================');
-//       console.error(`Error: ${error.message}`);
-//       console.error(`Time: ${totalTime}s`);
-//       console.error(`Stack: ${error.stack}`);
-//       console.error('========================================\n');
-      
-//       // Try to send error notification via WhatsApp
-//       try {
-//         const errorMsg = `🚨 *SUNTRENIA REPORT FAILED*\n\n` +
-//           `⏰ Time: ${new Date().toLocaleString()}\n` +
-//           `❌ Error: ${error.message}\n` +
-//           `⏱️ Duration: ${totalTime}s\n\n` +
-//           `Check server logs for details.`;
-        
-//         await whatsappService.sendTextMessage(
-//           WHATSAPP_REPORT_RECIPIENT,
-//           errorMsg
-//         );
-//       } catch (notifyError) {
-//         console.error('⚠️ Failed to send error notification:', notifyError.message);
-//       }
-//     }
-//   })();
-// });
-
-
 /**
  * ✅ ENDPOINT 4: Health Check
  */
@@ -1369,6 +1244,100 @@ app.get('/intelligence/download', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'download.html'));
 });
 
+
+// ============================================
+// ✅ GATED DOWNLOAD - Email required, report sent to inbox
+// User cannot download directly — must receive via email
+// ============================================
+app.post('/intelligence/download', async (req, res) => {
+  try {
+    const { email, reportId } = req.body;
+
+    // Validate inputs
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({ success: false, error: 'Valid email required' });
+    }
+
+    if (!reportId) {
+      return res.status(400).json({ success: false, error: 'Report ID required' });
+    }
+
+    // Block disposable emails
+    const disposableDomains = [
+      'tempmail.com', 'throwaway.email', 'guerrillamail.com',
+      'mailinator.com', '10minutemail.com', 'temp-mail.org',
+      'fakeinbox.com', 'trashmail.com', 'getnada.com',
+      'maildrop.cc', 'yopmail.com', 'mohmal.com', 'sharklasers.com'
+    ];
+    const domain = email.split('@')[1]?.toLowerCase();
+    if (disposableDomains.includes(domain)) {
+      return res.status(400).json({ success: false, error: 'Disposable email not allowed. Please use a real email to receive your report.' });
+    }
+
+    // Get PDF buffer — check memory then disk
+    let pdfBuffer = global.reportCache?.[reportId]?.buffer;
+
+    if (!pdfBuffer) {
+      const filePath = path.join(__dirname, 'reports', `${reportId}.pdf`);
+      if (fs.existsSync(filePath)) {
+        pdfBuffer = fs.readFileSync(filePath);
+      }
+    }
+
+    if (!pdfBuffer) {
+      return res.status(404).json({ success: false, error: 'Report not found or expired. Please request a new report.' });
+    }
+
+    console.log(`\n📧 Gated download — sending report to: ${email}`);
+
+    // ✅ SEND report to email — user only gets it if email is real
+    const result = await pdfService.sendReportEmail(
+      email,
+      pdfBuffer,
+      `suntrenia-intelligence-report-${reportId}.pdf`
+    );
+
+    if (result.success) {
+      // Add to Brevo list
+      await addToBrevoList(email);
+
+      // Track CPA conversion
+      await fetch('http://localhost:3000/api/cpa/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          action: 'gated_download_delivered',
+          timestamp: new Date().toISOString()
+        })
+      }).catch(() => {});
+
+      console.log(`✅ Report delivered to inbox: ${email}`);
+      res.json({
+        success: true,
+        message: `Report sent to ${email}. Please check your inbox (and spam folder).`
+      });
+
+    } else {
+      console.error(`❌ Failed to deliver to ${email}`);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to send email. Please check the address and try again.'
+      });
+    }
+
+  } catch (error) {
+    console.error('❌ Gated download error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+
+
+
+
+
+
 app.post('/api/verify-email', async (req, res) => {
   try {
     const { email } = req.body;
@@ -1431,7 +1400,156 @@ async function addToBrevoList(email) {
     return { success: false };
   }
 }
+// ============================================
+// ✅ Premium Subscription Endpoint
+// Saves to separate Brevo premium list (List ID 3)
+// ============================================
+// ============================================
+// ✅ Premium Subscription Endpoint
+// Verifies Paystack payment then saves to Brevo
+// ============================================
+app.post('/api/subscribe/premium', async (req, res) => {
+  try {
+    const { email, name, plan = 'premium', paystackRef } = req.body;
 
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({ success: false, error: 'Valid email required' });
+    }
+
+    if (!paystackRef) {
+      return res.status(400).json({ success: false, error: 'Payment reference required' });
+    }
+
+    // ✅ Verify payment with Paystack API
+    console.log(`\n⭐ Verifying Paystack payment: ${paystackRef} for ${email}`);
+    const verifyResponse = await axios.get(
+      `https://api.paystack.co/transaction/verify/${paystackRef}`,
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`
+        }
+      }
+    );
+
+    const paystackData = verifyResponse.data;
+
+    // Check payment was actually successful
+    if (!paystackData.status || paystackData.data?.status !== 'success') {
+      console.warn(`⚠️ Payment verification failed for ref: ${paystackRef}`);
+      return res.status(400).json({ success: false, error: 'Payment verification failed' });
+    }
+
+    // Check email matches what was paid
+    if (paystackData.data?.customer?.email?.toLowerCase() !== email.toLowerCase()) {
+      console.warn(`⚠️ Email mismatch for ref: ${paystackRef}`);
+      return res.status(400).json({ success: false, error: 'Email mismatch with payment' });
+    }
+
+    console.log(`✅ Payment verified: ₦${paystackData.data.amount / 100} from ${email}`);
+
+    // ✅ Add to general Brevo list (reuses existing addToBrevoList)
+    await addToBrevoList(email);
+
+    // ✅ Add to premium list (List ID 3) using existing brevoContactsApi
+    if (brevoContactsApi) {
+      try {
+        const createContact = new Brevo.CreateContact();
+        createContact.email = email;
+        createContact.attributes = {
+          FIRSTNAME: name || '',
+          SUBSCRIBED_DATE: new Date().toISOString(),
+          PLAN: plan,
+          PAYSTACK_REF: paystackRef,
+          SOURCE: 'Premium Subscription Page'
+        };
+        createContact.listIds = [2, 3]; // General + Premium lists
+        createContact.updateEnabled = true;
+        await brevoContactsApi.createContact(createContact);
+        console.log(`✅ Added to premium Brevo list: ${email}`);
+      } catch (err) {
+        if (!err.message?.includes('already exists')) {
+          console.warn('⚠️ Brevo premium list error:', err.message);
+        }
+      }
+    }
+
+    // ✅ Send welcome email using existing brevoApiInstance
+    if (brevoApiInstance) {
+      try {
+        const sendSmtpEmail = new Brevo.SendSmtpEmail();
+        sendSmtpEmail.to = [{ email, name: name || 'Subscriber' }];
+        sendSmtpEmail.subject = '🛡️ Welcome to Suntrenia Premium — You\'re In!';
+        sendSmtpEmail.htmlContent = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1a2e; color: #fff; padding: 40px; border-radius: 12px;">
+            <h1 style="color: #e94560; text-align: center;">SUNTRENIA</h1>
+            <h2 style="text-align: center; color: #fff;">Welcome to Premium, ${name || 'Subscriber'}! 🎉</h2>
+            <p style="color: #ffffff90; line-height: 1.6; margin-bottom: 20px;">Your payment of ₦${paystackData.data.amount / 100} has been confirmed. You now have full premium access.</p>
+            <p style="color: #ffffff90; line-height: 1.6;">Every week you'll automatically receive:</p>
+            <ul style="color: #ffffff90; line-height: 2; margin: 15px 0;">
+              <li>📊 Full weekly intelligence report (PDF)</li>
+              <li>🗺️ Nigeria state-by-state threat map</li>
+              <li>🤖 AI-powered security briefings</li>
+              <li>📈 Trend data & forecasts</li>
+              <li>⚡ Daily briefings (coming soon)</li>
+            </ul>
+            <p style="color: #ffffff80; font-size: 0.85em; margin-top: 15px;">Payment Reference: ${paystackRef}</p>
+            <p style="color: #ffffff60; font-size: 0.8em; margin-top: 30px; text-align: center;">
+              To cancel or get support, reply to this email.<br>30-day money-back guarantee applies.
+            </p>
+          </div>
+        `;
+        sendSmtpEmail.sender = {
+          name: process.env.EMAIL_FROM_NAME || 'Suntrenia Intelligence',
+          email: process.env.EMAIL_FROM || process.env.EMAIL_USER
+        };
+        await brevoApiInstance.sendTransacEmail(sendSmtpEmail);
+        console.log(`✅ Welcome email sent to: ${email}`);
+      } catch (err) {
+        console.warn('⚠️ Welcome email failed (non-fatal):', err.message);
+      }
+    }
+
+    // ✅ Track CPA conversion (reuses existing endpoint)
+    await fetch('http://localhost:3000/api/cpa/track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email,
+        action: 'premium_payment_confirmed',
+        paystackRef,
+        amount: paystackData.data.amount / 100,
+        timestamp: new Date().toISOString()
+      })
+    }).catch(() => {});
+
+    console.log(`⭐ Premium activation complete for: ${email}`);
+    res.json({
+      success: true,
+      message: `Premium activated! Reports will be sent to ${email}`
+    });
+
+  } catch (error) {
+    console.error('❌ Premium subscription error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ============================================
+// ✅ Subscriber Count (for social proof on premium page)
+// ============================================
+app.get('/api/subscribers/count', async (req, res) => {
+  try {
+    if (!brevoContactsApi) {
+      return res.json({ count: 0 });
+    }
+    const response = await brevoContactsApi.getContactsFromList(2, undefined, 1);
+    const count = response.body?.count || 0;
+    res.json({ count });
+  } catch (err) {
+    console.warn('⚠️ Could not fetch subscriber count:', err.message);
+    res.json({ count: 0 });
+  }
+});
 // ============================================
 // Send Report to Email Endpoint
 // ============================================
@@ -1544,37 +1662,101 @@ app.post('/api/cpa/track', async (req, res) => {
 // ============================================
 // PDF Download Endpoint
 // ============================================
+// app.get('/api/reports/download/:reportId', (req, res) => {
+//   const { reportId } = req.params;
+  
+//   const report = global.reportCache?.[reportId];
+  
+//   if (!report) {
+//     return res.status(404).json({ error: 'Report not found or expired' });
+//   }
+  
+//   // Check if report is older than 24 hours
+//   const age = Date.now() - report.createdAt;
+//   if (age > 24 * 60 * 60 * 1000) {
+//     delete global.reportCache[reportId];
+//     return res.status(410).json({ error: 'Report expired' });
+//   }
+  
+//   console.log(`📥 Download: ${reportId}`);
+  
+//   res.setHeader('Content-Type', 'application/pdf');
+//   res.setHeader('Content-Disposition', `attachment; filename="suntrenia-intelligence-${reportId}.pdf"`);
+//   res.send(report.buffer);
+  
+//   // Clean up old reports (older than 48 hours)
+//   Object.keys(global.reportCache).forEach(id => {
+//     const reportAge = Date.now() - global.reportCache[id].createdAt;
+//     if (reportAge > 48 * 60 * 60 * 1000) {
+//       delete global.reportCache[id];
+//     }
+//   });
+// });
 app.get('/api/reports/download/:reportId', (req, res) => {
   const { reportId } = req.params;
   
-  const report = global.reportCache?.[reportId];
+  // Check memory cache first
+  let pdfBuffer = global.reportCache?.[reportId]?.buffer;
+  const cachedReport = global.reportCache?.[reportId];
   
-  if (!report) {
-    return res.status(404).json({ error: 'Report not found or expired' });
+  // Check if memory cache exists but is expired (24 hours)
+  if (cachedReport) {
+    const age = Date.now() - cachedReport.createdAt;
+    if (age > 24 * 60 * 60 * 1000) {
+      delete global.reportCache[reportId];
+      pdfBuffer = null;
+    }
   }
   
-  // Check if report is older than 24 hours
-  const age = Date.now() - report.createdAt;
-  if (age > 24 * 60 * 60 * 1000) {
-    delete global.reportCache[reportId];
-    return res.status(410).json({ error: 'Report expired' });
+  // ✅ NEW: If not in memory, check disk (survives Render restarts)
+  if (!pdfBuffer) {
+    const filePath = path.join(__dirname, 'reports', `${reportId}.pdf`);
+    if (fs.existsSync(filePath)) {
+      // Check disk file age too (24 hours)
+      const fileStat = fs.statSync(filePath);
+      const fileAge = Date.now() - fileStat.mtimeMs;
+      if (fileAge > 24 * 60 * 60 * 1000) {
+        fs.unlinkSync(filePath); // Delete expired file
+        return res.status(410).json({ error: 'Report expired' });
+      }
+      pdfBuffer = fs.readFileSync(filePath);
+    }
+  }
+  
+  if (!pdfBuffer) {
+    return res.status(404).json({ error: 'Report not found or expired' });
   }
   
   console.log(`📥 Download: ${reportId}`);
   
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="suntrenia-intelligence-${reportId}.pdf"`);
-  res.send(report.buffer);
+  res.send(pdfBuffer);
   
-  // Clean up old reports (older than 48 hours)
-  Object.keys(global.reportCache).forEach(id => {
-    const reportAge = Date.now() - global.reportCache[id].createdAt;
-    if (reportAge > 48 * 60 * 60 * 1000) {
-      delete global.reportCache[id];
-    }
-  });
+  // ✅ Clean up old reports from memory (older than 48 hours)
+  if (global.reportCache) {
+    Object.keys(global.reportCache).forEach(id => {
+      const reportAge = Date.now() - global.reportCache[id].createdAt;
+      if (reportAge > 48 * 60 * 60 * 1000) {
+        delete global.reportCache[id];
+      }
+    });
+  }
+  
+  // ✅ Clean up old files from disk (older than 48 hours)
+  const reportsDir = path.join(__dirname, 'reports');
+  if (fs.existsSync(reportsDir)) {
+    fs.readdirSync(reportsDir).forEach(file => {
+      const filePath = path.join(reportsDir, file);
+      const fileStat = fs.statSync(filePath);
+      const fileAge = Date.now() - fileStat.mtimeMs;
+      if (fileAge > 48 * 60 * 60 * 1000) {
+        fs.unlinkSync(filePath);
+        console.log(`🗑️ Cleaned up expired report: ${file}`);
+      }
+    });
+  }
 });
-
 app.listen(port, () => {
   console.log(`\n✅ ========================================`);
   console.log(`🚀 Suntrenia Intelligence Server Started`);
