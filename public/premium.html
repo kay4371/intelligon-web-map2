@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -359,88 +360,81 @@
     </div>
 
    <!-- Paystack SDK -->
-<script src="https://js.paystack.co/v1/inline.js"></script>
+   <script src="https://js.paystack.co/v1/inline.js"></script>
 
-<script>
-function subscribe(plan) {
-  if (plan !== 'premium') return;
-
-  // Ask for email before opening payment
-  const email = prompt('Please enter your email address to continue:');
-  if (!email || !email.includes('@')) {
-    alert('Please enter a valid email address.');
-    return;
-  }
-
-  const name = prompt('Your name (optional):') || '';
-
-  // Open Paystack inline payment popup
-  const handler = PaystackPop.setup({
-    key: 'pk_live_REPLACE_WITH_YOUR_PAYSTACK_PUBLIC_KEY', // ← replace this
-    email: email,
-    amount: 1500000, // ₦15,000 in kobo (15000 * 100). Adjust to your price
-    currency: 'NGN',
-    ref: 'SUNTRENIA-' + Date.now() + '-' + Math.floor(Math.random() * 999999),
-    metadata: {
-      custom_fields: [
-        { display_name: 'Plan', variable_name: 'plan', value: 'premium' },
-        { display_name: 'Name', variable_name: 'name', value: name }
-      ]
-    },
-    callback: async function(response) {
-      // Payment successful — verify and save subscriber
-      console.log('✅ Payment successful. Ref:', response.reference);
-
-      const btn = document.querySelector('.pricing-card.featured .btn-subscribe');
-      btn.textContent = '⏳ Activating your account...';
-      btn.disabled = true;
-
-      try {
-        // ✅ Verify payment + save subscriber on backend
-        const result = await fetch('/api/subscribe/premium', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email,
-            name,
-            plan: 'premium',
-            paystackRef: response.reference
-          })
-        });
-
-        const data = await result.json();
-
-        if (data.success) {
-          // Show success message
-          document.querySelector('.pricing-card.featured').innerHTML = `
-            <div style="text-align: center; padding: 40px 20px;">
-              <div style="font-size: 4em;">🎉</div>
-              <h2 style="color: #27ae60; margin: 15px 0;">You're Premium!</h2>
-              <p style="color: #555; margin-bottom: 10px;">Welcome aboard, ${name || 'Subscriber'}!</p>
-              <p style="color: #777; font-size: 0.9em;">A confirmation and your first report have been sent to:</p>
-              <p style="color: #667eea; font-weight: bold; margin-top: 8px;">${email}</p>
-              <p style="color: #999; font-size: 0.8em; margin-top: 20px;">Check your inbox and spam folder.</p>
-            </div>
-          `;
-        } else {
-          btn.disabled = false;
-          btn.textContent = '🚀 Upgrade to Premium';
-          alert('Payment received but account activation failed. Please email us at premium@suntrenia.com with your payment reference: ' + response.reference);
-        }
-
-      } catch (err) {
-        btn.disabled = false;
-        btn.textContent = '🚀 Upgrade to Premium';
-        alert('Payment received but there was an error. Please contact premium@suntrenia.com with reference: ' + response.reference);
-      }
-    },
-    onClose: function() {
-      console.log('Payment popup closed');
-    }
-  });
-
-  handler.openIframe();
-}
+   <script>
+   function subscribe(plan) {
+     if (plan !== 'premium') return;
+   
+     var email = prompt('Please enter your email address to continue:');
+     if (!email || !email.includes('@')) {
+       alert('Please enter a valid email address.');
+       return;
+     }
+   
+     var name = prompt('Your name (optional):') || '';
+   
+     var handler = PaystackPop.setup({
+       key: 'pk_test_318f88e70993b061dc252a45a8325115b9c4455a', // ← replace this,
+       email: email,
+       amount: 1500000,
+       currency: 'NGN',
+       ref: 'SUNTRENIA-' + Date.now() + '-' + Math.floor(Math.random() * 999999),
+       metadata: {
+         custom_fields: [
+           { display_name: 'Plan', variable_name: 'plan', value: 'premium' },
+           { display_name: 'Name', variable_name: 'name', value: name }
+         ]
+       },
+       callback: function(response) {
+         var btn = document.querySelector('.pricing-card.featured .btn-subscribe');
+         btn.textContent = '⏳ Activating your account...';
+         btn.disabled = true;
+   
+         fetch('/api/subscribe/premium', {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify({
+             email: email,
+             name: name,
+             plan: 'premium',
+             paystackRef: response.reference
+           })
+         })
+         .then(function(res) { return res.json(); })
+         .then(function(data) {
+           if (data.success) {
+             document.querySelector('.pricing-card.featured').innerHTML =
+               '<div style="text-align:center;padding:40px 20px;">' +
+               '<div style="font-size:4em;">🎉</div>' +
+               '<h2 style="color:#27ae60;margin:15px 0;">You\'re Premium!</h2>' +
+               '<p style="color:#555;margin-bottom:10px;">Welcome aboard, ' + (name || 'Subscriber') + '!</p>' +
+               '<p style="color:#777;font-size:0.9em;">Your confirmation has been sent to:</p>' +
+               '<p style="color:#667eea;font-weight:bold;margin-top:8px;">' + email + '</p>' +
+               '<p style="color:#999;font-size:0.8em;margin-top:20px;">Check your inbox and spam folder.</p>' +
+               '</div>';
+           } else {
+             btn.disabled = false;
+             btn.textContent = '🚀 Upgrade to Premium';
+             alert('Payment received but activation failed. Email us at premium@suntrenia.com with reference: ' + response.reference);
+           }
+         })
+         .catch(function() {
+           btn.disabled = false;
+           btn.textContent = '🚀 Upgrade to Premium';
+           alert('Payment received but there was an error. Contact premium@suntrenia.com with reference: ' + response.reference);
+         });
+       },
+       onClose: function() {
+         console.log('Payment popup closed');
+       }
+     });
+   
+     handler.openIframe();
+   }
+   </script>
+   </body>
+   </html>
 </script>
 </body>
 </html>
