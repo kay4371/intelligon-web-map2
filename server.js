@@ -36,17 +36,12 @@ let brevoApiInstance = null;
 let brevoContactsApi = null;
 
 if (process.env.BREVO_API_KEY) {
-//   brevoApiInstance = new Brevo.TransactionalEmailsApi();
-//   brevoApiInstance.setApiKey(Brevo.TransactionalEmailsApiApiKeys.apiKey, process.env.BREVO_API_KEY);
+  brevoApiInstance = new Brevo.TransactionalEmailsApi();
+  brevoApiInstance.setApiKey(Brevo.TransactionalEmailsApiApiKeys.apiKey, process.env.BREVO_API_KEY);
   
-//   brevoContactsApi = new Brevo.ContactsApi();
-//   brevoContactsApi.setApiKey(Brevo.ContactsApiApiKeys.apiKey, process.env.BREVO_API_KEY);
-    const brevoClient = require('@getbrevo/brevo');
-    const defaultClient = brevoClient.ApiClient.instance;
-    defaultClient.authentications['api-key'].apiKey = process.env.BREVO_API_KEY;
-
-    brevoApiInstance = new brevoClient.TransactionalEmailsApi();
-    brevoContactsApi = new brevoClient.ContactsApi();
+  brevoContactsApi = new Brevo.ContactsApi();
+  brevoContactsApi.setApiKey(Brevo.ContactsApiApiKeys.apiKey, process.env.BREVO_API_KEY);
+  
   console.log('✅ Brevo: Email list service configured');
 }
 // // ✅ Pre-configure your Intel group
