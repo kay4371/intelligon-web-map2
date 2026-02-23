@@ -1,5 +1,3 @@
-
-
 // === weeklySummaryReport.js (MVP Add-on Module for Suntrenia) ===
 
 
@@ -7,7 +5,7 @@
   const PDFDocument = require('pdfkit');
   const { Readable } = require('stream');
   const axios = require('axios');
-  const QuickChart = require('quickchart-js');
+  // QuickChart removed — charts now drawn natively with PDFKit vectors
   const { getHighlightedMapBuffer, stateNameToId } = require('./utils/mapUtils'); // ✅ Correct path
   
   module.exports = function (app, newsCache, scrapeAllSources) {
@@ -35,18 +33,36 @@
       // ✅ Now the map will render correctly
       doc.image(mapBuffer, { width: 400 }).moveDown();
   
-      const pieChartUrl = await generateChart('pie', 'Incident Breakdown', stats.byType);
-      const barChartUrl = await generateChart('bar', 'Summary Statistics', {
-        'States Affected': stats.states.size,
-        'Total Incidents': data.length,
-        'Abductions': stats.abducted,
-        'Fatalities': stats.fatalities
+      // ── Incident Breakdown (native bar chart)
+      doc.fontSize(13).fillColor('#2c3e50').text('INCIDENT CATEGORY BREAKDOWN', { underline: false }).moveDown(0.3);
+      const catEntries = Object.entries(stats.byType).sort((a,b) => b[1]-a[1]);
+      const catMax = Math.max(...catEntries.map(e=>e[1]), 1);
+      const catColors = ['#e63946','#9b5de5','#f77f00','#4361ee','#2dc653','#e3b341'];
+      catEntries.forEach(([cat, count], i) => {
+        const barW = Math.max((count / catMax) * 300, 4);
+        const col = catColors[i % catColors.length];
+        doc.rect(doc.x, doc.y, barW, 16).fill(col);
+        doc.fillColor('#2c3e50').fontSize(9).text(`  ${cat}: ${count}`, doc.x + barW + 6, doc.y - 14);
+        doc.moveDown(0.8);
       });
-      const timelineChartUrl = await generateChart('line', 'Incident Timeline', stats.byDate);
-  
-      doc.image(await getImageBuffer(pieChartUrl), { width: 400 }).moveDown();
-      doc.image(await getImageBuffer(barChartUrl), { width: 400 }).moveDown();
-      doc.image(await getImageBuffer(timelineChartUrl), { width: 400 }).moveDown();
+      doc.moveDown(0.5);
+
+      // ── Summary Statistics (native bar chart)
+      doc.fontSize(13).fillColor('#2c3e50').text('SUMMARY STATISTICS').moveDown(0.3);
+      const summaryStats = [
+        ['States Affected', stats.states.size, '#f77f00'],
+        ['Total Incidents', data.length,        '#e63946'],
+        ['Abductions',      stats.abducted,     '#9b5de5'],
+        ['Fatalities',      stats.fatalities,   '#da3633'],
+      ];
+      const sumMax = Math.max(...summaryStats.map(s=>s[1]), 1);
+      summaryStats.forEach(([label, val, col]) => {
+        const barW = Math.max((val / sumMax) * 300, 4);
+        doc.rect(doc.x, doc.y, barW, 16).fill(col);
+        doc.fillColor('#2c3e50').fontSize(9).text(`  ${label}: ${val}`, doc.x + barW + 6, doc.y - 14);
+        doc.moveDown(0.8);
+      });
+      doc.moveDown(0.5);
   
       doc.addPage();
       doc.fontSize(16).text('🗒️ DETAILED INCIDENTS SUMMARY', { underline: true }).moveDown();
@@ -103,23 +119,7 @@ function classifyIncident(text) {
   return 'Other';
 }
 
-async function generateChart(type, label, dataObj) {
-  const chart = new QuickChart();
-  chart.setConfig({
-    type,
-    data: {
-      labels: Object.keys(dataObj),
-      datasets: [{ label, data: Object.values(dataObj) }]
-    }
-  });
-  chart.setWidth(500).setHeight(300);
-  return await chart.getShortUrl();
-}
-
-async function getImageBuffer(url) {
-  const res = await axios.get(url, { responseType: 'arraybuffer' });
-  return Buffer.from(res.data, 'binary');
-}
+// Charts are now drawn natively with PDFKit — no external chart library needed
 
 function generateFictitiousData() {
   const fakeStates = ['Kaduna', 'Zamfara', 'Benue', 'Borno', 'Imo', 'Katsina'];
@@ -142,4 +142,3 @@ function generateFictitiousData() {
     fatalities: Math.random() > 0.4 ? Math.floor(Math.random() * 20) : 0
   }));
 }
-
