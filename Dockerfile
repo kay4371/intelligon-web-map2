@@ -19,6 +19,9 @@ RUN apt-get update && apt-get install -y \
     libnss3 \
     && rm -rf /var/lib/apt/lists/*
 
+# Tell Puppeteer where Chrome is — baked in, no env var needed on Render
+ENV CHROME_PATH=/usr/bin/chromium
+
 # Set working directory
 WORKDIR /app
 
