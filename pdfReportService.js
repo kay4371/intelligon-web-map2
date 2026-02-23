@@ -1,3 +1,4 @@
+
 // ============================================================
 // FILE: pdfReportService.js  — Puppeteer HTML-to-PDF Edition
 // World-class infographic security intelligence report
@@ -21,12 +22,28 @@ const CHROME_PATHS = [
   '/usr/bin/chromium',
 ];
 
+// function getChromePath() {
+//   if (process.env.CHROME_PATH) return process.env.CHROME_PATH;
+//   for (const p of CHROME_PATHS) { if (p && fs.existsSync(p)) return p; }
+//   return null;
+// }
 function getChromePath() {
-  if (process.env.CHROME_PATH) return process.env.CHROME_PATH;
-  for (const p of CHROME_PATHS) { if (p && fs.existsSync(p)) return p; }
-  return null;
-}
-
+    if (process.env.CHROME_PATH) return process.env.CHROME_PATH;
+    
+    // Check Puppeteer's downloaded Chrome (Linux/Render)
+    const puppeteerCacheDir = path.join(require('os').homedir(), '.cache/puppeteer/chrome');
+    if (fs.existsSync(puppeteerCacheDir)) {
+      const versions = fs.readdirSync(puppeteerCacheDir);
+      for (const ver of versions) {
+        const p = path.join(puppeteerCacheDir, ver, 'chrome-linux64/chrome');
+        if (fs.existsSync(p)) return p;
+      }
+    }
+    
+    // Windows paths
+    for (const p of CHROME_PATHS) { if (p && fs.existsSync(p)) return p; }
+    return null;
+  }
 // ── Helpers shared with old service ─────────────────────────
 function cleanText(str) {
   return (str || '')
