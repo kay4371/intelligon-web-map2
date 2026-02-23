@@ -5,14 +5,12 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "echo \"No tests defined\" && exit 0",
-    "postinstall": "node node_modules/puppeteer/install.js"
+    "test": "echo \"No tests defined\" && exit 0"
   },
   "keywords": ["nigeria", "map", "express", "leaflet", "docker"],
   "author": "Kayode Fakorede",
   "license": "ISC",
   "dependencies": {
-    "puppeteer": "21.11.0",
     "canvas": "^2.11.2",
     "@getbrevo/brevo": "3.0.1",
     "axios": "^1.10.0",
@@ -28,6 +26,7 @@
     "path-to-regexp": "^8.2.0",
     "pdfkit": "^0.17.2",
     "pdfkit-table": "^0.1.99",
+    "puppeteer-core": "21.11.0",
     "quickchart-js": "^3.1.3",
     "rss-parser": "^3.13.0",
     "sharp": "^0.34.2",
