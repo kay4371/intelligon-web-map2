@@ -1,5 +1,6 @@
 
 
+
 // ✅ 1. Load environment variables FIRST
 require('dotenv').config();
 const express = require('express');
@@ -716,7 +717,8 @@ app.post('/api/cron/email-report', cronAuth, async (req, res) => {
 
           const doc = await pdfService.generateEnhancedReport(reportData, {
             includeAIAnalysis: true,
-            reportType: 'weekly'
+            reportType,
+            teaserOnly: true  // ← Free users get 2-page teaser only
           });
 
           const pdfBuffer = await pdfService.streamToBuffer(doc);
