@@ -1,4 +1,3 @@
-
 // ✅ 1. Load environment variables FIRST
 require('dotenv').config();
 const express = require('express');
@@ -195,38 +194,6 @@ const cronAuth = (req, res, next) => {
   console.log('✅ Cron authentication successful');
   next();
 };
-
-app.get('/api/debug/chrome', async (req, res) => {
-  const fs = require('fs');
-  const { execSync } = require('child_process');
-  
-  const info = {
-    CHROME_PATH_ENV: process.env.CHROME_PATH || 'NOT SET',
-    checks: {}
-  };
-
-  const paths = [
-    '/usr/bin/chromium',
-    '/usr/bin/chromium-browser', 
-    '/usr/bin/google-chrome',
-    '/root/.cache/puppeteer/chrome',
-  ];
-
-  for (const p of paths) {
-    info.checks[p] = fs.existsSync(p) ? 'EXISTS' : 'NOT FOUND';
-  }
-
-  try {
-    info.whichChromium = execSync('which chromium 2>/dev/null || echo "not found"').toString().trim();
-    info.whichChrome = execSync('which google-chrome 2>/dev/null || echo "not found"').toString().trim();
-    info.cacheDir = execSync('ls /root/.cache/puppeteer/chrome/ 2>/dev/null || echo "empty/missing"').toString().trim();
-  } catch(e) {
-    info.execError = e.message;
-  }
-
-  res.json(info);
-});
-
 
 
 
