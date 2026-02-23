@@ -38,6 +38,11 @@
     "svg-to-pdfkit": "^0.1.8",
     "xml2js": "^0.6.2"
   },
+  "scripts": {
+    "start": "node server.js",
+    "test": "echo \"No tests defined\" && exit 0",
+    "postinstall": "npx puppeteer browsers install chrome"
+},
   "engines": {
     "node": ">=18.0.0"
   }
