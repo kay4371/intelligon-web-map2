@@ -1,6 +1,6 @@
 FROM node:20-bullseye
 
-# Install canvas native dependencies
+# Install canvas native dependencies + Chromium for Puppeteer
 RUN apt-get update && apt-get install -y \
     build-essential \
     libcairo2-dev \
@@ -12,6 +12,11 @@ RUN apt-get update && apt-get install -y \
     g++ \
     make \
     pkg-config \
+    chromium \
+    fonts-liberation \
+    libatk-bridge2.0-0 \
+    libgtk-3-0 \
+    libnss3 \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
