@@ -226,11 +226,9 @@ app.get('/api/debug/chrome', async (req, res) => {
 
   res.json(info);
 });
-```
 
-Commit and push, then visit:
-```
-https://intelligon-web-map2.onrender.com/api/debug/chrome
+
+
 
 app.get('/api/cron/wake', async (req, res) => {
   console.log('\n⏰ ========================================');
