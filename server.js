@@ -1,6 +1,3 @@
-
-
-
 // ✅ 1. Load environment variables FIRST
 require('dotenv').config();
 const express = require('express');
@@ -63,7 +60,6 @@ const selectedWhatsAppGroups = new Set();
 
 // ✅ 4. Continue with the rest of your server code...
 app.use(express.static(path.join(__dirname, 'public')));
-
 app.use(express.json());
 
 // Cache for 15 minutes
@@ -71,12 +67,70 @@ const newsCache = new NodeCache({ stdTTL: 900 });
 const addWeeklySummaryRoute = require('./WeeklyReport');
 addWeeklySummaryRoute(app, newsCache, scrapeAllSources);
 
-// Keywords to filter
+// ─────────────────────────────────────────────────────────────────
+// SECURITY KEYWORDS — strict 3-pass filter
+// ─────────────────────────────────────────────────────────────────
 const keywords = [
-  'bandits','kidnap','gunmen','violence','attack','boko haram',
-  'herdsmen','militants','conflict','bomb','suicide','terror','raid',
-  'ipob','esn','insurgents','abduction','shooting'
+  'bandits','banditry','kidnap','abduct','hostage','ransom',
+  'gunmen','armed men','unknown gunmen','boko haram','iswap','ansaru',
+  'terror','bomb','ied','suicide vest','explosion','blast',
+  'herdsmen','herder','farmer-herder','fulani attack',
+  'communal clash','ethnic clash','village attack',
+  'ipob','esn','cult','cultists','confraternity','rival gang',
+  'militants','insurgents','armed robbery','robbers',
+  'soldiers killed','troops killed','police killed','officer killed',
+  'military operation','airstrike','air strike','army raid',
+  'massacre','mass killing','death toll','bodies found','corpses',
+  'displacement','idp','internally displaced',
+  'attack on','ambush','shootout','gun battle','firefight',
 ];
+
+// Must contain at least one Nigeria geographic/institutional marker
+const NIGERIA_CONTEXT = [
+  'nigeria','nigerian',
+  'abuja','lagos','kano','kaduna','borno','zamfara','katsina',
+  'sokoto','adamawa','yobe','plateau','benue','niger state',
+  'taraba','nasarawa','kebbi','gombe','bauchi','jigawa','kogi','kwara',
+  'anambra','enugu','imo','abia','ebonyi','rivers','delta','bayelsa',
+  'cross river','akwa ibom','edo','ondo','osun','oyo','ogun','ekiti',
+  'nigerian army','nigerian police','nigerian air force','nigerian navy',
+  'dss','nscdc','naf ','nnpc','dssc',
+  'state government','local government area','lga',
+];
+
+// Hard exclusions — these topics must NEVER appear in a security brief
+const EXCLUSIONS = [
+  // Sports
+  'premier league','epl','champions league','la liga','bundesliga',
+  'serie a','ligue 1','nba','nfl','mlb','nhl','cricket','tennis',
+  'golf','formula 1',' f1 ','transfer fee','footballer','manager sacked',
+  'match result','league table','scored a goal','hat trick',
+  // International non-Nigeria news
+  'el mencho','mexico cartel','colombia','afghanistan','ukraine war',
+  'russia ukraine','israel-hamas','gaza strip','west bank','taiwan strait',
+  'us politics','trump','biden','democrat','republican',
+  // Finance / crypto
+  'stock market','cryptocurrency','bitcoin','ethereum','forex trading',
+  'interest rate fed','wall street',
+  // Entertainment
+  'nollywood','music album','concert tour','award show','grammy',
+  'afrobeats chart','celebrity wedding','bbnaija','big brother',
+  'fashion week','beauty pageant','lifestyle','recipe','restaurant review',
+  // Sports personalities (common false positives with Nigerian names)
+  'adebayor','osimhen','musa ahmed','john mikel','iheanacho',
+];
+
+/**
+ * Returns true only if the story is a genuine Nigeria security incident.
+ * Three-pass filter: keyword match → Nigeria context → exclusion check.
+ */
+function isRelevantSecurityStory(title, summary) {
+  const text = ((title || '') + ' ' + (summary || '')).toLowerCase();
+  if (!keywords.some(k => text.includes(k)))         return false;
+  if (!NIGERIA_CONTEXT.some(c => text.includes(c)))  return false;
+  if (EXCLUSIONS.some(e => text.includes(e)))         return false;
+  return true;
+}
 
 const parser = new RSSParser();
 
@@ -206,14 +260,13 @@ async function fetchFromRSS() {
       const feed = await parser.parseString(sanitized);
 
       feed.items.forEach(item => {
-        const text = (item.contentSnippet || item.content || '') + ' ' + item.title;
-        if (keywords.some(k => text.toLowerCase().includes(k))) {
+        if (isRelevantSecurityStory(item.title, item.contentSnippet || item.content || '')) {
           items.push({
-            title: item.title,
-            link: item.link,
-            summary: item.contentSnippet || '',
-            source: feed.title,
-            timestamp: item.pubDate || item.isoDate
+            title:     item.title,
+            link:      item.link,
+            summary:   item.contentSnippet || '',
+            source:    feed.title,
+            timestamp: item.pubDate || item.isoDate,
           });
         }
       });
@@ -230,13 +283,13 @@ async function fetchFromApi() {
     const resp = await axios.get(WORLDNEWS_URL);
     const articles = resp.data.articles || [];
     return articles
-      .filter(a => keywords.some(k => a.summary?.toLowerCase().includes(k) || a.title?.toLowerCase().includes(k)))
+      .filter(a => isRelevantSecurityStory(a.title, a.summary))
       .map(a => ({
-        title: a.title,
-        link: a.url,
-        summary: a.summary || '',
-        source: a.source_name || 'WorldNewsAPI',
-        timestamp: a.publishedAt
+        title:     a.title,
+        link:      a.url,
+        summary:   a.summary || '',
+        source:    a.source_name || 'WorldNewsAPI',
+        timestamp: a.publishedAt,
       }));
   } catch (err) {
     console.warn(`⚠️ Free API fetch failed: ${err.message}`);
@@ -717,8 +770,7 @@ app.post('/api/cron/email-report', cronAuth, async (req, res) => {
 
           const doc = await pdfService.generateEnhancedReport(reportData, {
             includeAIAnalysis: true,
-            reportType,
-            teaserOnly: true  // ← Free users get 2-page teaser only
+            reportType: 'weekly'
           });
 
           const pdfBuffer = await pdfService.streamToBuffer(doc);
@@ -871,7 +923,7 @@ app.post('/api/cron/whatsapp-report', cronAuth, async (req, res) => {
       console.log('   ✅ Infographic sent');
       
       // Second: Send message with download link
-      const downloadUrl = `https://intelligon-web-map2.onrender.com/intelligence/download?id=${reportId}`;
+      const downloadUrl = `https://intelligon-web-map2.onrender.com/api/reports/download/${reportId}`;
       // const downloadUrl = `https://intelligon-web-map-new-with-trigger.onrender.com/intelligence/download?id=${reportId}`;
       const message = `📊 *FULL DETAILED REPORT AVAILABLE*\n\n` +
         `✨ Get the complete 7-page PDF report with:\n` +
@@ -1241,12 +1293,11 @@ app.post('/api/reports/email', async (req, res) => {
 // ============================================
 app.get('/intelligence/download', (req, res) => {
   const reportId = req.query.id;
-
-  if (!reportId) {
-    return res.status(404).send('Report not found');
+  
+  if (!reportId || !global.reportCache?.[reportId]) {
+    return res.status(404).send('Report not found or expired');
   }
-
-  // ✅ Always serve the email form — fresh report generated on submission
+  
   res.sendFile(path.join(__dirname, 'public', 'download.html'));
 });
 
