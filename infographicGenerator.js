@@ -83,7 +83,6 @@ class InfographicGenerator {
 
       const buffer = await page.screenshot({
         type: 'png',
-        fullPage: true,
         clip: { x: 0, y: 0, width: this.width, height: this.height },
       });
 
