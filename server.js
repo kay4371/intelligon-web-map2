@@ -923,7 +923,7 @@ app.post('/api/cron/whatsapp-report', cronAuth, async (req, res) => {
       console.log('   ✅ Infographic sent');
       
       // Second: Send message with download link
-      const downloadUrl = `https://intelligon-web-map2.onrender.com/api/reports/download/${reportId}`;
+      const downloadUrl = `https://intelligon-web-map2.onrender.com/intelligence/download?id=${reportId}`;
       // const downloadUrl = `https://intelligon-web-map-new-with-trigger.onrender.com/intelligence/download?id=${reportId}`;
       const message = `📊 *FULL DETAILED REPORT AVAILABLE*\n\n` +
         `✨ Get the complete 7-page PDF report with:\n` +
@@ -1293,11 +1293,21 @@ app.post('/api/reports/email', async (req, res) => {
 // ============================================
 app.get('/intelligence/download', (req, res) => {
   const reportId = req.query.id;
-  
-  if (!reportId || !global.reportCache?.[reportId]) {
+
+  if (!reportId) {
     return res.status(404).send('Report not found or expired');
   }
-  
+
+  // Check memory cache first, then disk
+  const inMemory = !!global.reportCache?.[reportId];
+  const filePath = path.join(__dirname, 'reports', `${reportId}.pdf`);
+  const onDisk   = fs.existsSync(filePath);
+
+  if (!inMemory && !onDisk) {
+    return res.status(404).send('Report not found or expired. Please request a new report.');
+  }
+
+  // ✅ Serve the email-gated download page
   res.sendFile(path.join(__dirname, 'public', 'download.html'));
 });
 
