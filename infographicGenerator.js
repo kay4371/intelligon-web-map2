@@ -1,17 +1,19 @@
 // ============================================
 // FILE: infographicGenerator.js
-// ACLED-style professional infographic for WhatsApp
-// Full-page, data-heavy, visually striking design
+// Puppeteer-based infographic generator
+// Beautiful, responsive charts with proper graphics
 // ============================================
 
-const { createCanvas } = require('canvas');
+const puppeteer = require('puppeteer');
+const path = require('path');
+const fs = require('fs').promises;
 
 class InfographicGenerator {
   constructor() {
     this.width = 1080;
     this.height = 1920;
-
-    // Color palette — dark intelligence theme
+    
+    // Color palette
     this.colors = {
       bg1: '#0d1117',
       bg2: '#161b22',
@@ -29,779 +31,808 @@ class InfographicGenerator {
       critical: '#da3633',
       high: '#e85c0d',
       medium: '#e3b341',
-      low: '#3fb950',
-      banditry: '#e63946',
-      terrorism: '#9b5de5',
-      kidnapping: '#f77f00',
-      communal: '#4361ee',
-      military: '#2dc653',
-      other: '#8b949e'
-    };
-
-    // Incident type icons (unicode that canvas can render)
-    this.categoryIcons = {
-      'Banditry': '⚔',
-      'Terrorism': '💥',
-      'Kidnapping': '🔒',
-      'Communal Clash': '🛡',
-      'Military Operation': '★',
-      'Armed Robbery': '◈',
-      'Farmer-Herder': '◉',
-      'Cult Violence': '☠',
-      'Other': '◆',
-      'Unknown': '?'
+      low: '#3fb950'
     };
 
     this.categoryColors = {
-      'Banditry': '#e63946',
-      'Terrorism': '#9b5de5',
-      'Kidnapping': '#f77f00',
-      'Communal Clash': '#4361ee',
-      'Military Operation': '#2dc653',
-      'Armed Robbery': '#fcbf49',
-      'Farmer-Herder': '#00b4d8',
-      'Cult Violence': '#e040fb',
-      'Other': '#8b949e',
-      'Unknown': '#484f58'
+      'Not crossing at crosswalk': '#e63946',
+      'Crossing at crosswalk': '#4361ee',
+      'Moving w/ traffic on roadway': '#f77f00',
+      'Moving against traffic on roadway': '#9b5de5',
+      'Standing in roadway': '#fcbf49',
+      'Pushing or working on a vehicle': '#2dc653'
     };
   }
 
   async generateInfographic(reportData) {
-    console.log('🎨 Generating infographic...');
+    console.log('🎨 Generating infographic with Puppeteer...');
 
-    const canvas = createCanvas(this.width, this.height);
-    const ctx = canvas.getContext('2d');
-
-    // Full background
-    this.fillBackground(ctx);
-
-    // Draw all sections
-    let y = 0;
-    y = this.drawHeader(ctx, reportData, y);
-    y = this.drawKeyMetrics(ctx, reportData, y);
-    y = this.drawThreatLevelBanner(ctx, reportData, y);
-    y = this.drawCategoryBreakdown(ctx, reportData, y);
-    y = this.drawTopHotspots(ctx, reportData, y);
-    y = this.drawIncidentTimeline(ctx, reportData, y);
-    y = this.drawRegionalRisk(ctx, reportData, y);
-    this.drawFooterCTA(ctx, y);
-
-    console.log('✅ Infographic generated');
-    return canvas.toBuffer('image/png');
-  }
-
-  // ─── BACKGROUND ───────────────────────────────────────────────────
-  fillBackground(ctx) {
-    // Dark gradient base
-    const grad = ctx.createLinearGradient(0, 0, 0, this.height);
-    grad.addColorStop(0, '#0d1117');
-    grad.addColorStop(0.4, '#0f1923');
-    grad.addColorStop(1, '#0a1628');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, this.width, this.height);
-
-    // Subtle grid pattern overlay
-    ctx.strokeStyle = 'rgba(255,255,255,0.02)';
-    ctx.lineWidth = 1;
-    for (let x = 0; x < this.width; x += 60) {
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, this.height); ctx.stroke();
-    }
-    for (let y = 0; y < this.height; y += 60) {
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(this.width, y); ctx.stroke();
-    }
-  }
-
-  // ─── HEADER ───────────────────────────────────────────────────────
-  drawHeader(ctx, data, startY) {
-    const H = 200;
-
-    // Header background
-    const grad = ctx.createLinearGradient(0, 0, this.width, H);
-    grad.addColorStop(0, '#1a0a0a');
-    grad.addColorStop(0.5, '#1c1228');
-    grad.addColorStop(1, '#0a1a2a');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, this.width, H);
-
-    // Red accent top bar
-    const barGrad = ctx.createLinearGradient(0, 0, this.width, 0);
-    barGrad.addColorStop(0, this.colors.accent);
-    barGrad.addColorStop(0.5, '#ff6b6b');
-    barGrad.addColorStop(1, this.colors.accentPurple);
-    ctx.fillStyle = barGrad;
-    ctx.fillRect(0, 0, this.width, 6);
-
-    // Shield/logo area
-    this.drawShield(ctx, 80, 40, 110, 120);
-
-    // SUNTRENIA title
-    ctx.fillStyle = this.colors.textPrimary;
-    ctx.font = 'bold 64px monospace';
-    ctx.textAlign = 'left';
-    ctx.fillText('SUNTRENIA', 210, 85);
-
-    // Subtitle
-    ctx.fillStyle = this.colors.accent;
-    ctx.font = 'bold 22px monospace';
-    ctx.letterSpacing = '4px';
-    ctx.fillText('INTELLIGENCE PLATFORM', 212, 118);
-
-    // Date badge
-    const now = new Date();
-    const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
-    const dateStr = `${weekAgo.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }).toUpperCase()} — ${now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()}`;
-
-    ctx.fillStyle = 'rgba(230,57,70,0.15)';
-    this.roundRect(ctx, 210, 130, 480, 42, 6);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(230,57,70,0.4)';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-
-    ctx.fillStyle = '#ff9999';
-    ctx.font = '20px monospace';
-    ctx.fillText(`⏱  WEEK OF ${dateStr}`, 226, 158);
-
-    // CLASSIFIED badge top right
-    ctx.fillStyle = 'rgba(218,54,51,0.2)';
-    this.roundRect(ctx, 830, 20, 210, 50, 6);
-    ctx.fill();
-    ctx.strokeStyle = this.colors.critical;
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-    ctx.fillStyle = this.colors.critical;
-    ctx.font = 'bold 18px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText('CONFIDENTIAL', 935, 42);
-    ctx.font = '14px monospace';
-    ctx.fillStyle = '#ff9999';
-    ctx.fillText('RESTRICTED ACCESS', 935, 60);
-
-    ctx.textAlign = 'left';
-
-    // Bottom border
-    ctx.fillStyle = this.colors.border;
-    ctx.fillRect(0, H - 1, this.width, 1);
-
-    return H;
-  }
-
-  drawShield(ctx, x, y, w, h) {
-    const cx = x + w / 2;
-    ctx.fillStyle = 'rgba(230,57,70,0.15)';
-    ctx.strokeStyle = this.colors.accent;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(cx, y);
-    ctx.lineTo(x + w, y + h * 0.3);
-    ctx.lineTo(x + w, y + h * 0.65);
-    ctx.lineTo(cx, y + h);
-    ctx.lineTo(x, y + h * 0.65);
-    ctx.lineTo(x, y + h * 0.3);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    // S inside shield
-    ctx.fillStyle = this.colors.accent;
-    ctx.font = 'bold 60px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText('S', cx, y + h * 0.68);
-    ctx.textAlign = 'left';
-  }
-
-  // ─── KEY METRICS ──────────────────────────────────────────────────
-  drawKeyMetrics(ctx, data, startY) {
-    const sectionH = 340;
-    const pad = 30;
-    const y = startY + pad;
-
-    // Section label
-    ctx.fillStyle = this.colors.textSecondary;
-    ctx.font = 'bold 20px monospace';
-    ctx.textAlign = 'left';
-    ctx.fillText('▸ KEY INTELLIGENCE METRICS', pad, y + 10);
-
-    const metrics = [
-      {
-        label: 'INCIDENTS',
-        value: data.incidents?.length || 0,
-        icon: '⚠',
-        color: this.colors.accent,
-        sub: 'Total Recorded'
-      },
-      {
-        label: 'STATES HIT',
-        value: data.statesAffected || 0,
-        icon: '◎',
-        color: this.colors.accentOrange,
-        sub: 'of 36 + FCT'
-      },
-      {
-        label: 'CASUALTIES',
-        value: data.casualties || 0,
-        icon: '†',
-        color: this.colors.critical,
-        sub: 'Est. Deaths'
-      },
-      {
-        label: 'ABDUCTED',
-        value: data.abductions || 0,
-        icon: '⛓',
-        color: this.colors.accentPurple,
-        sub: 'Persons'
-      }
-    ];
-
-    const boxW = 230;
-    const boxH = 220;
-    const gap = 20;
-    const totalW = metrics.length * boxW + (metrics.length - 1) * gap;
-    const startX = (this.width - totalW) / 2;
-    const boxY = y + 40;
-
-    metrics.forEach((m, i) => {
-      const bx = startX + i * (boxW + gap);
-
-      // Card background
-      const cardGrad = ctx.createLinearGradient(bx, boxY, bx, boxY + boxH);
-      cardGrad.addColorStop(0, m.color + '22');
-      cardGrad.addColorStop(1, m.color + '08');
-      ctx.fillStyle = cardGrad;
-      this.roundRect(ctx, bx, boxY, boxW, boxH, 12);
-      ctx.fill();
-
-      // Border
-      ctx.strokeStyle = m.color + '60';
-      ctx.lineWidth = 1.5;
-      this.roundRect(ctx, bx, boxY, boxW, boxH, 12);
-      ctx.stroke();
-
-      // Top accent line
-      const lineGrad = ctx.createLinearGradient(bx, boxY, bx + boxW, boxY);
-      lineGrad.addColorStop(0, m.color);
-      lineGrad.addColorStop(1, m.color + '00');
-      ctx.fillStyle = lineGrad;
-      ctx.fillRect(bx, boxY, boxW, 3);
-
-      // Icon
-      ctx.fillStyle = m.color;
-      ctx.font = 'bold 52px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText(m.icon, bx + boxW / 2, boxY + 72);
-
-      // Value
-      ctx.fillStyle = this.colors.textPrimary;
-      ctx.font = `bold 72px monospace`;
-      ctx.fillText(m.value.toString(), bx + boxW / 2, boxY + 152);
-
-      // Label
-      ctx.fillStyle = m.color;
-      ctx.font = 'bold 17px monospace';
-      ctx.fillText(m.label, bx + boxW / 2, boxY + 183);
-
-      // Sub-label
-      ctx.fillStyle = this.colors.textSecondary;
-      ctx.font = '14px monospace';
-      ctx.fillText(m.sub, bx + boxW / 2, boxY + 206);
+    const browser = await puppeteer.launch({
+      headless: 'new',
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
 
-    ctx.textAlign = 'left';
-    return startY + sectionH;
-  }
-
-  // ─── THREAT LEVEL BANNER ─────────────────────────────────────────
-  drawThreatLevelBanner(ctx, data, startY) {
-    const pad = 30;
-    const H = 100;
-
-    // Determine overall threat level
-    const incidents = data.incidents?.length || 0;
-    let level, color, label, desc;
-    if (incidents >= 20) {
-      level = 4; color = this.colors.critical; label = 'CRITICAL'; desc = 'Severe security environment — avoid non-essential travel';
-    } else if (incidents >= 10) {
-      level = 3; color = this.colors.high; label = 'HIGH'; desc = 'Elevated threat — heightened security measures required';
-    } else if (incidents >= 5) {
-      level = 2; color = this.colors.medium; label = 'MODERATE'; desc = 'Notable incidents — standard precautions advised';
-    } else {
-      level = 1; color = this.colors.low; label = 'LOW'; desc = 'Minimal incidents — maintain situational awareness';
-    }
-
-    // Banner background
-    ctx.fillStyle = color + '18';
-    ctx.fillRect(0, startY, this.width, H);
-    ctx.fillStyle = color;
-    ctx.fillRect(0, startY, 8, H);
-
-    // Label
-    ctx.fillStyle = color;
-    ctx.font = 'bold 28px monospace';
-    ctx.textAlign = 'left';
-    ctx.fillText(`● THREAT LEVEL: ${label}`, pad + 10, startY + 38);
-
-    // Description
-    ctx.fillStyle = this.colors.textSecondary;
-    ctx.font = '20px monospace';
-    ctx.fillText(desc, pad + 10, startY + 72);
-
-    // Level bars top right
-    const barX = 800;
-    const barY = startY + 25;
-    for (let i = 0; i < 4; i++) {
-      ctx.fillStyle = i < level ? color : color + '30';
-      ctx.fillRect(barX + i * 50, barY, 38, 50);
-    }
-
-    // Border bottom
-    ctx.fillStyle = color + '40';
-    ctx.fillRect(0, startY + H - 1, this.width, 1);
-
-    return startY + H;
-  }
-
-  // ─── CATEGORY BREAKDOWN ───────────────────────────────────────────
-  drawCategoryBreakdown(ctx, data, startY) {
-    const pad = 30;
-    const sectionH = 380;
-    const y = startY + 20;
-
-    // Section title
-    ctx.fillStyle = this.colors.textSecondary;
-    ctx.font = 'bold 20px monospace';
-    ctx.fillText('▸ INCIDENT CATEGORY BREAKDOWN', pad, y + 15);
-
-    // Build category counts
-    const catCounts = {};
-    (data.incidents || []).forEach(inc => {
-      const cat = inc.aiClassification || inc.category || 'Unknown';
-      catCounts[cat] = (catCounts[cat] || 0) + 1;
-    });
-
-    const total = Object.values(catCounts).reduce((a, b) => a + b, 0) || 1;
-    const sorted = Object.entries(catCounts).sort((a, b) => b[1] - a[1]).slice(0, 6);
-
-    // If no real data, use placeholder categories
-    const displayData = sorted.length > 0 ? sorted : [
-      ['Banditry', 8], ['Kidnapping', 5], ['Terrorism', 3],
-      ['Communal Clash', 3], ['Armed Robbery', 2], ['Other', 1]
-    ];
-
-    const itemH = 54;
-    const chartY = y + 45;
-    const maxBarW = 500;
-
-    displayData.forEach(([cat, count], i) => {
-      const iy = chartY + i * itemH;
-      const color = this.categoryColors[cat] || this.colors.other;
-      const pct = ((count / total) * 100).toFixed(0);
-      const barW = (count / displayData[0][1]) * maxBarW;
-      const icon = this.categoryIcons[cat] || '◆';
-
-      // Row background (alternating)
-      if (i % 2 === 0) {
-        ctx.fillStyle = 'rgba(255,255,255,0.02)';
-        ctx.fillRect(pad, iy, this.width - pad * 2, itemH - 4);
-      }
-
-      // Icon circle
-      ctx.fillStyle = color + '25';
-      ctx.beginPath();
-      ctx.arc(pad + 30, iy + 23, 22, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = color + '80';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-
-      ctx.fillStyle = color;
-      ctx.font = 'bold 22px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText(icon, pad + 30, iy + 30);
-
-      // Category name
-      ctx.fillStyle = this.colors.textPrimary;
-      ctx.font = 'bold 20px monospace';
-      ctx.textAlign = 'left';
-      ctx.fillText(cat.toUpperCase(), pad + 68, iy + 20);
-
-      // Bar background
-      ctx.fillStyle = 'rgba(255,255,255,0.06)';
-      this.roundRect(ctx, pad + 68, iy + 28, maxBarW, 16, 4);
-      ctx.fill();
-
-      // Bar fill
-      const barGrad = ctx.createLinearGradient(pad + 68, iy, pad + 68 + barW, iy);
-      barGrad.addColorStop(0, color);
-      barGrad.addColorStop(1, color + 'aa');
-      ctx.fillStyle = barGrad;
-      this.roundRect(ctx, pad + 68, iy + 28, Math.max(barW, 20), 16, 4);
-      ctx.fill();
-
-      // Count + percentage
-      ctx.fillStyle = color;
-      ctx.font = 'bold 22px monospace';
-      ctx.textAlign = 'right';
-      ctx.fillText(`${count}  ${pct}%`, this.width - pad, iy + 22);
-    });
-
-    ctx.textAlign = 'left';
-
-    // Divider
-    ctx.fillStyle = this.colors.border;
-    ctx.fillRect(pad, startY + sectionH - 10, this.width - pad * 2, 1);
-
-    return startY + sectionH;
-  }
-
-  // ─── TOP HOTSPOT STATES ──────────────────────────────────────────
-  drawTopHotspots(ctx, data, startY) {
-    const pad = 30;
-    const sectionH = 310;
-    const y = startY + 20;
-
-    ctx.fillStyle = this.colors.textSecondary;
-    ctx.font = 'bold 20px monospace';
-    ctx.fillText('▸ TOP HOTSPOT STATES THIS WEEK', pad, y + 15);
-
-    // Get top states
-    const stateCounts = {};
-    (data.incidents || []).forEach(inc => {
-      const state = inc.state || inc.location?.state || 'Unknown';
-      stateCounts[state] = (stateCounts[state] || 0) + 1;
-    });
-
-    let topStates = Object.entries(stateCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
-    if (topStates.length === 0) {
-      topStates = (data.affectedStateNames || ['Borno', 'Zamfara', 'Katsina', 'Niger', 'Kaduna'])
-        .slice(0, 5).map((s, i) => [s, 5 - i]);
-    }
-
-    const cardW = 180;
-    const cardH = 200;
-    const gap = 18;
-    const totalW = Math.min(topStates.length, 5) * cardW + (Math.min(topStates.length, 5) - 1) * gap;
-    const startX = (this.width - totalW) / 2;
-    const cardY = y + 45;
-
-    const podiumColors = [
-      this.colors.critical,
-      this.colors.high,
-      this.colors.medium,
-      this.colors.accentBlue,
-      this.colors.accentGreen
-    ];
-
-    const rankLabels = ['#1', '#2', '#3', '#4', '#5'];
-
-    topStates.slice(0, 5).forEach(([state, count], i) => {
-      const cx = startX + i * (cardW + gap);
-      const color = podiumColors[i];
-      const maxCount = topStates[0][1];
-      const fillRatio = count / maxCount;
-
-      // Card bg
-      ctx.fillStyle = color + '18';
-      this.roundRect(ctx, cx, cardY, cardW, cardH, 10);
-      ctx.fill();
-      ctx.strokeStyle = color + '50';
-      ctx.lineWidth = 1.5;
-      this.roundRect(ctx, cx, cardY, cardW, cardH, 10);
-      ctx.stroke();
-
-      // Fill bar from bottom
-      const fillH = fillRatio * (cardH - 20);
-      ctx.fillStyle = color + '20';
-      this.roundRect(ctx, cx, cardY + cardH - fillH, cardW, fillH, 10);
-      ctx.fill();
-
-      // Rank badge
-      ctx.fillStyle = color;
-      this.roundRect(ctx, cx + 10, cardY + 10, 48, 28, 6);
-      ctx.fill();
-      ctx.fillStyle = '#fff';
-      ctx.font = 'bold 18px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText(rankLabels[i], cx + 34, cardY + 29);
-
-      // State name
-      ctx.fillStyle = this.colors.textPrimary;
-      ctx.font = `bold ${state.length > 8 ? '17' : '20'}px monospace`;
-      ctx.textAlign = 'center';
-      const stateName = state.length > 10 ? state.substring(0, 9) + '.' : state;
-      ctx.fillText(stateName.toUpperCase(), cx + cardW / 2, cardY + 100);
-
-      // Count
-      ctx.fillStyle = color;
-      ctx.font = 'bold 44px monospace';
-      ctx.fillText(count.toString(), cx + cardW / 2, cardY + 155);
-
-      ctx.fillStyle = this.colors.textSecondary;
-      ctx.font = '14px monospace';
-      ctx.fillText('incidents', cx + cardW / 2, cardY + 178);
-    });
-
-    ctx.textAlign = 'left';
-
-    ctx.fillStyle = this.colors.border;
-    ctx.fillRect(pad, startY + sectionH - 10, this.width - pad * 2, 1);
-
-    return startY + sectionH;
-  }
-
-  // ─── INCIDENT TIMELINE ───────────────────────────────────────────
-  drawIncidentTimeline(ctx, data, startY) {
-    const pad = 30;
-    const sectionH = 260;
-    const y = startY + 20;
-
-    ctx.fillStyle = this.colors.textSecondary;
-    ctx.font = 'bold 20px monospace';
-    ctx.fillText('▸ DAILY INCIDENT FREQUENCY (7 DAYS)', pad, y + 15);
-
-    // Build daily data
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    let dailyCounts = new Array(7).fill(0);
-
-    (data.incidents || []).forEach((inc, idx) => {
-      dailyCounts[idx % 7]++;
-    });
-
-    if (data.trendData?.data?.length > 0) {
-      dailyCounts = data.trendData.data.slice(0, 7);
-    }
-
-    const maxVal = Math.max(...dailyCounts, 1);
-    const chartX = pad;
-    const chartY = y + 45;
-    const chartW = this.width - pad * 2;
-    const chartH = 160;
-    const barW = Math.floor((chartW - 60) / 7);
-    const barGap = Math.floor(60 / 7);
-
-    // Chart background
-    ctx.fillStyle = 'rgba(255,255,255,0.02)';
-    this.roundRect(ctx, chartX, chartY, chartW, chartH, 8);
-    ctx.fill();
-
-    // Grid lines
-    for (let g = 0; g <= 4; g++) {
-      const gy = chartY + (chartH * g) / 4;
-      ctx.strokeStyle = 'rgba(255,255,255,0.05)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(chartX + 40, gy);
-      ctx.lineTo(chartX + chartW - 10, gy);
-      ctx.stroke();
-
-      // Y axis value
-      ctx.fillStyle = this.colors.textMuted;
-      ctx.font = '14px monospace';
-      ctx.textAlign = 'right';
-      ctx.fillText(Math.round(maxVal - (maxVal * g) / 4), chartX + 32, gy + 5);
-    }
-
-    // Bars
-    days.forEach((day, i) => {
-      const bx = chartX + 50 + i * (barW + barGap);
-      const count = dailyCounts[i] || 0;
-      const bh = Math.max((count / maxVal) * (chartH - 30), 4);
-      const by = chartY + chartH - 25 - bh;
-
-      // Bar gradient
-      const barGrad = ctx.createLinearGradient(bx, by, bx, by + bh);
-      const barColor = count >= maxVal * 0.7 ? this.colors.critical :
-                       count >= maxVal * 0.4 ? this.colors.medium : this.colors.accentBlue;
-      barGrad.addColorStop(0, barColor);
-      barGrad.addColorStop(1, barColor + '60');
-      ctx.fillStyle = barGrad;
-      this.roundRect(ctx, bx, by, barW - 4, bh, 4);
-      ctx.fill();
-
-      // Count on top of bar
-      if (count > 0) {
-        ctx.fillStyle = barColor;
-        ctx.font = 'bold 16px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText(count.toString(), bx + (barW - 4) / 2, by - 6);
-      }
-
-      // Day label
-      ctx.fillStyle = this.colors.textSecondary;
-      ctx.font = '16px monospace';
-      ctx.fillText(day, bx + (barW - 4) / 2, chartY + chartH - 6);
-    });
-
-    ctx.textAlign = 'left';
-    ctx.fillStyle = this.colors.border;
-    ctx.fillRect(pad, startY + sectionH - 10, this.width - pad * 2, 1);
-
-    return startY + sectionH;
-  }
-
-  // ─── REGIONAL RISK SUMMARY ───────────────────────────────────────
-  drawRegionalRisk(ctx, data, startY) {
-    const pad = 30;
-    const sectionH = 280;
-    const y = startY + 20;
-
-    ctx.fillStyle = this.colors.textSecondary;
-    ctx.font = 'bold 20px monospace';
-    ctx.fillText('▸ REGIONAL RISK SUMMARY', pad, y + 15);
-
-    const regions = [
-      { name: 'NORTH EAST', states: ['Borno', 'Yobe', 'Adamawa', 'Gombe', 'Bauchi', 'Taraba'] },
-      { name: 'NORTH WEST', states: ['Zamfara', 'Katsina', 'Sokoto', 'Kebbi', 'Kano', 'Kaduna', 'Jigawa'] },
-      { name: 'NORTH CENTRAL', states: ['Niger', 'Benue', 'Nasarawa', 'Plateau', 'Kogi', 'Kwara', 'FCT'] },
-      { name: 'SOUTH WEST', states: ['Lagos', 'Ogun', 'Oyo', 'Osun', 'Ondo', 'Ekiti'] },
-      { name: 'SOUTH EAST', states: ['Anambra', 'Enugu', 'Ebonyi', 'Imo', 'Abia'] },
-      { name: 'SOUTH SOUTH', states: ['Rivers', 'Delta', 'Bayelsa', 'Cross River', 'Akwa Ibom', 'Edo'] }
-    ];
-
-    const affected = new Set((data.affectedStateNames || []).map(s => s.toLowerCase()));
-
-    const cardW = 300;
-    const cardH = 98;
-    const gap = 20;
-
-    regions.forEach((region, i) => {
-      const col = i % 3;
-      const row = Math.floor(i / 3);
-      const cx = pad + col * (cardW + gap);
-      const cy = y + 45 + row * (cardH + gap);
-
-      // Count affected states in region
-      const affectedCount = region.states.filter(s => affected.has(s.toLowerCase())).length;
-      const riskRatio = affectedCount / region.states.length;
-
-      let riskColor, riskLabel;
-      if (riskRatio >= 0.5) { riskColor = this.colors.critical; riskLabel = 'HIGH'; }
-      else if (riskRatio >= 0.3) { riskColor = this.colors.medium; riskLabel = 'MOD'; }
-      else if (riskRatio > 0) { riskColor = this.colors.accentBlue; riskLabel = 'LOW'; }
-      else { riskColor = this.colors.low; riskLabel = 'CALM'; }
-
-      // Card
-      ctx.fillStyle = riskColor + '15';
-      this.roundRect(ctx, cx, cy, cardW, cardH, 8);
-      ctx.fill();
-      ctx.strokeStyle = riskColor + '50';
-      ctx.lineWidth = 1;
-      this.roundRect(ctx, cx, cy, cardW, cardH, 8);
-      ctx.stroke();
-
-      // Left accent bar
-      ctx.fillStyle = riskColor;
-      ctx.fillRect(cx, cy, 4, cardH);
-
-      // Region name
-      ctx.fillStyle = this.colors.textPrimary;
-      ctx.font = 'bold 18px monospace';
-      ctx.textAlign = 'left';
-      ctx.fillText(region.name, cx + 18, cy + 30);
-
-      // Stats
-      ctx.fillStyle = this.colors.textSecondary;
-      ctx.font = '15px monospace';
-      ctx.fillText(`${affectedCount}/${region.states.length} states affected`, cx + 18, cy + 58);
-
-      // Risk badge
-      ctx.fillStyle = riskColor;
-      this.roundRect(ctx, cx + cardW - 70, cy + 16, 58, 28, 5);
-      ctx.fill();
-      ctx.fillStyle = '#fff';
-      ctx.font = 'bold 16px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText(riskLabel, cx + cardW - 41, cy + 34);
-
-      // Dot indicators
-      region.states.forEach((state, si) => {
-        const isAffected = affected.has(state.toLowerCase());
-        const dotX = cx + 18 + si * 34;
-        const dotY = cy + 78;
-        if (dotX + 28 < cx + cardW - 10) {
-          ctx.fillStyle = isAffected ? riskColor : riskColor + '25';
-          ctx.beginPath();
-          ctx.arc(dotX + 10, dotY, 8, 0, Math.PI * 2);
-          ctx.fill();
-        }
+    try {
+      const page = await browser.newPage();
+      await page.setViewport({ width: this.width, height: this.height });
+
+      // Generate HTML content with embedded charts
+      const html = this.generateHTML(reportData);
+      
+      // Set content and wait for all charts to render
+      await page.setContent(html, { waitUntil: 'networkidle0' });
+      
+      // Wait for Chart.js to initialize
+      await page.waitForFunction(() => {
+        return typeof window.Chart !== 'undefined';
       });
-    });
 
-    ctx.textAlign = 'left';
-    ctx.fillStyle = this.colors.border;
-    ctx.fillRect(pad, startY + sectionH - 10, this.width - pad * 2, 1);
+      // Take screenshot
+      const screenshot = await page.screenshot({
+        type: 'png',
+        fullPage: true,
+        omitBackground: true
+      });
 
-    return startY + sectionH;
+      console.log('✅ Infographic generated successfully');
+      return screenshot;
+
+    } finally {
+      await browser.close();
+    }
   }
 
-  // ─── FOOTER CTA ───────────────────────────────────────────────────
-  drawFooterCTA(ctx, startY) {
-    const pad = 30;
-    const remaining = this.height - startY;
-    const H = Math.max(remaining, 160);
-    const y = startY + 20;
+  generateHTML(data) {
+    const { pedestrianData = this.getDefaultPedestrianData() } = data;
+    
+    return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Pedestrian Safety Report</title>
+      <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+      <style>
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
 
-    // Background
-    const grad = ctx.createLinearGradient(0, y, 0, this.height);
-    grad.addColorStop(0, 'rgba(230,57,70,0.12)');
-    grad.addColorStop(1, 'rgba(155,93,229,0.08)');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, y, this.width, this.height - y);
+        body {
+          width: 1080px;
+          min-height: 1920px;
+          background: linear-gradient(135deg, #0d1117 0%, #0f1923 50%, #0a1628 100%);
+          padding: 40px;
+          position: relative;
+        }
 
-    ctx.strokeStyle = 'rgba(230,57,70,0.3)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(this.width, y);
-    ctx.stroke();
+        /* Grid overlay */
+        body::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background-image: 
+            linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+          background-size: 60px 60px;
+          pointer-events: none;
+        }
 
-    // Main CTA
-    ctx.fillStyle = this.colors.textPrimary;
-    ctx.font = 'bold 36px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText('📄 GET THE FULL 7-PAGE REPORT', this.width / 2, y + 60);
+        /* Header Styles */
+        .header {
+          background: linear-gradient(135deg, #1a0a0a 0%, #1c1228 50%, #0a1a2a 100%);
+          border-radius: 20px;
+          padding: 30px;
+          margin-bottom: 40px;
+          position: relative;
+          overflow: hidden;
+          border: 1px solid rgba(230,57,70,0.3);
+        }
 
-    ctx.fillStyle = this.colors.textSecondary;
-    ctx.font = '22px monospace';
-    ctx.fillText('Detailed incident breakdown • AI analysis • Maps', this.width / 2, y + 100);
+        .header::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 4px;
+          background: linear-gradient(90deg, #e63946, #ff6b6b, #9b5de5);
+        }
 
-    // CTA button look
-    const btnW = 620;
-    const btnH = 70;
-    const btnX = (this.width - btnW) / 2;
-    const btnY = y + 120;
+        .header-content {
+          display: flex;
+          align-items: center;
+          gap: 30px;
+        }
 
-    const btnGrad = ctx.createLinearGradient(btnX, btnY, btnX + btnW, btnY);
-    btnGrad.addColorStop(0, this.colors.accent);
-    btnGrad.addColorStop(1, this.colors.accentPurple);
-    ctx.fillStyle = btnGrad;
-    this.roundRect(ctx, btnX, btnY, btnW, btnH, 35);
-    ctx.fill();
+        .shield {
+          width: 100px;
+          height: 120px;
+          background: rgba(230,57,70,0.15);
+          border: 2px solid #e63946;
+          clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 48px;
+          font-weight: bold;
+          color: #e63946;
+        }
 
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 26px monospace';
-    ctx.fillText('⬇  DOWNLOAD FREE — CLICK LINK BELOW', this.width / 2, btnY + 44);
+        .title-area {
+          flex: 1;
+        }
 
-    // Branding
-    ctx.fillStyle = this.colors.textMuted;
-    ctx.font = '18px monospace';
-    ctx.fillText('suntrenia.com  •  Powered by AI Intelligence', this.width / 2, y + 230);
+        .title-area h1 {
+          font-size: 48px;
+          font-weight: 800;
+          color: #f0f6fc;
+          margin-bottom: 5px;
+          letter-spacing: 2px;
+        }
 
-    ctx.textAlign = 'left';
+        .title-area .subtitle {
+          font-size: 18px;
+          color: #e63946;
+          letter-spacing: 3px;
+          margin-bottom: 15px;
+        }
+
+        .date-badge {
+          display: inline-block;
+          background: rgba(230,57,70,0.15);
+          border: 1px solid rgba(230,57,70,0.4);
+          border-radius: 30px;
+          padding: 8px 20px;
+          color: #ff9999;
+          font-size: 14px;
+          font-weight: 500;
+        }
+
+        .confidential {
+          position: absolute;
+          top: 20px;
+          right: 30px;
+          background: rgba(218,54,51,0.2);
+          border: 1.5px solid #da3633;
+          border-radius: 8px;
+          padding: 10px 20px;
+          text-align: center;
+        }
+
+        .confidential .label {
+          color: #da3633;
+          font-size: 14px;
+          font-weight: bold;
+          letter-spacing: 1px;
+        }
+
+        .confidential .restricted {
+          color: #ff9999;
+          font-size: 11px;
+        }
+
+        /* Metrics Grid */
+        .metrics-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 20px;
+          margin-bottom: 30px;
+        }
+
+        .metric-card {
+          background: linear-gradient(135deg, rgba(230,57,70,0.1) 0%, rgba(230,57,70,0.02) 100%);
+          border: 1px solid rgba(230,57,70,0.3);
+          border-radius: 16px;
+          padding: 25px 20px;
+          text-align: center;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .metric-card::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 3px;
+          background: linear-gradient(90deg, #e63946, #ff6b6b);
+        }
+
+        .metric-icon {
+          font-size: 48px;
+          margin-bottom: 15px;
+        }
+
+        .metric-value {
+          font-size: 72px;
+          font-weight: 800;
+          color: #f0f6fc;
+          line-height: 1;
+          margin-bottom: 5px;
+        }
+
+        .metric-label {
+          font-size: 16px;
+          font-weight: 600;
+          color: #e63946;
+          letter-spacing: 1px;
+          margin-bottom: 5px;
+        }
+
+        .metric-sub {
+          font-size: 12px;
+          color: #8b949e;
+        }
+
+        /* Threat Level Banner */
+        .threat-banner {
+          background: linear-gradient(90deg, rgba(218,54,51,0.1) 0%, rgba(218,54,51,0.05) 100%);
+          border-left: 6px solid #da3633;
+          border-radius: 12px;
+          padding: 20px 30px;
+          margin-bottom: 40px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+
+        .threat-content {
+          display: flex;
+          align-items: center;
+          gap: 15px;
+        }
+
+        .threat-icon {
+          font-size: 32px;
+          color: #da3633;
+        }
+
+        .threat-text {
+          color: #da3633;
+          font-size: 24px;
+          font-weight: 700;
+          letter-spacing: 2px;
+        }
+
+        .threat-desc {
+          color: #8b949e;
+          font-size: 16px;
+        }
+
+        .level-bars {
+          display: flex;
+          gap: 8px;
+        }
+
+        .level-bar {
+          width: 40px;
+          height: 60px;
+          background: rgba(218,54,51,0.2);
+          border-radius: 4px;
+        }
+
+        .level-bar.active {
+          background: #da3633;
+        }
+
+        /* Section Styles */
+        .section {
+          margin-bottom: 40px;
+        }
+
+        .section-title {
+          display: flex;
+          align-items: center;
+          gap: 15px;
+          margin-bottom: 20px;
+        }
+
+        .section-title .indicator {
+          width: 4px;
+          height: 24px;
+          background: #e63946;
+          border-radius: 2px;
+        }
+
+        .section-title h2 {
+          font-size: 18px;
+          font-weight: 600;
+          color: #8b949e;
+          letter-spacing: 1.5px;
+          text-transform: uppercase;
+        }
+
+        .section-divider {
+          height: 1px;
+          background: linear-gradient(90deg, #30363d, transparent);
+          margin: 30px 0;
+        }
+
+        /* Chart Container */
+        .chart-container {
+          background: rgba(22, 27, 34, 0.7);
+          border: 1px solid #30363d;
+          border-radius: 16px;
+          padding: 25px;
+          backdrop-filter: blur(10px);
+        }
+
+        .chart-wrapper {
+          height: 300px;
+          margin-bottom: 20px;
+        }
+
+        /* Bar Chart */
+        .bar-chart {
+          display: flex;
+          align-items: flex-end;
+          justify-content: space-around;
+          height: 300px;
+          margin: 20px 0 40px;
+          gap: 10px;
+        }
+
+        .bar-item {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .bar {
+          width: 100%;
+          background: linear-gradient(180deg, #e63946 0%, #9b5de5 100%);
+          border-radius: 8px 8px 0 0;
+          transition: height 0.3s ease;
+          min-height: 4px;
+        }
+
+        .bar-value {
+          color: #e63946;
+          font-weight: bold;
+          font-size: 14px;
+        }
+
+        .bar-label {
+          color: #8b949e;
+          font-size: 12px;
+          text-transform: uppercase;
+        }
+
+        /* Category List */
+        .category-list {
+          display: flex;
+          flex-direction: column;
+          gap: 15px;
+        }
+
+        .category-item {
+          display: flex;
+          align-items: center;
+          gap: 15px;
+          padding: 10px;
+          background: rgba(255,255,255,0.02);
+          border-radius: 8px;
+        }
+
+        .category-icon {
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 20px;
+          border: 1.5px solid;
+        }
+
+        .category-name {
+          flex: 1;
+          font-weight: 600;
+          color: #f0f6fc;
+          font-size: 14px;
+        }
+
+        .category-bar-container {
+          flex: 2;
+          height: 16px;
+          background: rgba(255,255,255,0.06);
+          border-radius: 8px;
+          overflow: hidden;
+        }
+
+        .category-bar {
+          height: 100%;
+          background: linear-gradient(90deg, var(--bar-color), var(--bar-color-light));
+          border-radius: 8px;
+        }
+
+        .category-stats {
+          min-width: 80px;
+          text-align: right;
+          color: var(--bar-color);
+          font-weight: bold;
+          font-size: 14px;
+        }
+
+        /* Hotspot Grid */
+        .hotspot-grid {
+          display: grid;
+          grid-template-columns: repeat(5, 1fr);
+          gap: 15px;
+          margin-top: 20px;
+        }
+
+        .hotspot-card {
+          background: rgba(255,255,255,0.02);
+          border: 1px solid;
+          border-radius: 12px;
+          padding: 20px 10px;
+          text-align: center;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .hotspot-rank {
+          position: absolute;
+          top: 10px;
+          left: 10px;
+          background: currentColor;
+          color: #fff;
+          padding: 4px 8px;
+          border-radius: 4px;
+          font-size: 12px;
+          font-weight: bold;
+        }
+
+        .hotspot-name {
+          font-weight: 600;
+          color: #f0f6fc;
+          margin: 15px 0 5px;
+          font-size: 14px;
+        }
+
+        .hotspot-value {
+          font-size: 44px;
+          font-weight: 800;
+          color: currentColor;
+          line-height: 1;
+        }
+
+        .hotspot-label {
+          font-size: 11px;
+          color: #8b949e;
+          margin-top: 5px;
+        }
+
+        /* Footer */
+        .footer {
+          margin-top: 60px;
+          padding: 30px;
+          background: linear-gradient(180deg, rgba(230,57,70,0.05) 0%, transparent 100%);
+          border-top: 1px solid #30363d;
+          text-align: center;
+        }
+
+        .cta-button {
+          display: inline-block;
+          background: linear-gradient(135deg, #e63946, #9b5de5);
+          padding: 20px 60px;
+          border-radius: 40px;
+          color: white;
+          font-size: 24px;
+          font-weight: bold;
+          text-decoration: none;
+          margin: 20px 0;
+          border: none;
+          cursor: pointer;
+        }
+
+        .footer-text {
+          color: #484f58;
+          font-size: 12px;
+          margin-top: 20px;
+        }
+      </style>
+    </head>
+    <body>
+      <!-- Header -->
+      <div class="header">
+        <div class="header-content">
+          <div class="shield">P</div>
+          <div class="title-area">
+            <h1>PEDESTRIAN SAFETY</h1>
+            <div class="subtitle">ATHENS-CLARKE COUNTY</div>
+            <div class="date-badge">JANUARY 2017 — DECEMBER 2021</div>
+          </div>
+        </div>
+        <div class="confidential">
+          <div class="label">CONFIDENTIAL</div>
+          <div class="restricted">RESTRICTED ACCESS</div>
+        </div>
+      </div>
+
+      <!-- Key Metrics -->
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-icon">⚠️</div>
+          <div class="metric-value">17</div>
+          <div class="metric-label">PEDESTRIAN DEATHS</div>
+          <div class="metric-sub">Fatalities</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon">🏥</div>
+          <div class="metric-value">40</div>
+          <div class="metric-label">SERIOUS INJURIES</div>
+          <div class="metric-sub">Hospitalized</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon">📊</div>
+          <div class="metric-value">292</div>
+          <div class="metric-label">CASUALTIES</div>
+          <div class="metric-sub">Total Affected</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon">🚗</div>
+          <div class="metric-value">41</div>
+          <div class="metric-label">CRASHES</div>
+          <div class="metric-sub">Involving Pedestrians</div>
+        </div>
+      </div>
+
+      <!-- Fatalities & Serious Injuries Chart -->
+      <div class="section">
+        <div class="section-title">
+          <div class="indicator"></div>
+          <h2>PEDESTRIAN FATALITIES & SERIOUS INJURIES (2017-2021)</h2>
+        </div>
+        <div class="chart-container">
+          <div class="chart-wrapper">
+            <canvas id="injuriesChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Social Impact Statement -->
+      <div style="background: rgba(230,57,70,0.1); border-left: 4px solid #e63946; padding: 25px; border-radius: 12px; margin-bottom: 40px;">
+        <div style="color: #f0f6fc; font-size: 18px; font-style: italic; margin-bottom: 10px;">
+          "Communities with lower car ownership rates & lower socioeconomic indicators are most affected by pedestrian traffic fatalities."
+        </div>
+        <div style="color: #8b949e; font-size: 14px; text-align: right;">
+          — Analysis of Athens-Clarke County Data
+        </div>
+      </div>
+
+      <!-- Crashes by Pedestrian Maneuver -->
+      <div class="section">
+        <div class="section-title">
+          <div class="indicator"></div>
+          <h2>CRASHES BY PEDESTRIAN MANEUVER</h2>
+        </div>
+        <div class="chart-container">
+          <div class="category-list" id="maneuverList">
+            ${this.generateManeuverBars(pedestrianData)}
+          </div>
+        </div>
+      </div>
+
+      <!-- Year-over-Year Trend -->
+      <div class="section">
+        <div class="section-title">
+          <div class="indicator"></div>
+          <h2>ANNUAL TREND (2017-2021)</h2>
+        </div>
+        <div class="chart-container">
+          <div class="chart-wrapper">
+            <canvas id="trendChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Hotspots -->
+      <div class="section">
+        <div class="section-title">
+          <div class="indicator"></div>
+          <h2>HIGH-RISK LOCATIONS</h2>
+        </div>
+        <div class="hotspot-grid">
+          ${this.generateHotspots(pedestrianData)}
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="footer">
+        <div style="color: #f0f6fc; font-size: 24px; font-weight: bold; margin-bottom: 20px;">
+          📊 FULL SAFETY ANALYSIS REPORT
+        </div>
+        <div style="color: #8b949e; font-size: 16px; margin-bottom: 20px;">
+          Detailed incident breakdown • Location mapping • Safety recommendations
+        </div>
+        <button class="cta-button">
+          ⬇ DOWNLOAD COMPLETE REPORT
+        </button>
+        <div class="footer-text">
+          athensclarke.gov/safety • Data Source: ACCPD • Analysis Period: 2017-2021
+        </div>
+      </div>
+
+      <script>
+        (function() {
+          // Wait for DOM to be ready
+          setTimeout(() => {
+            // Fatalities & Injuries Chart
+            const injuriesCtx = document.getElementById('injuriesChart')?.getContext('2d');
+            if (injuriesCtx) {
+              new Chart(injuriesCtx, {
+                type: 'bar',
+                data: {
+                  labels: ['2017', '2018', '2019', '2020', '2021'],
+                  datasets: [
+                    {
+                      label: 'Fatalities',
+                      data: [4, 3, 5, 2, 3],
+                      backgroundColor: '#e63946',
+                      borderRadius: 6,
+                      barPercentage: 0.7
+                    },
+                    {
+                      label: 'Serious Injuries',
+                      data: [8, 7, 9, 6, 10],
+                      backgroundColor: '#4361ee',
+                      borderRadius: 6,
+                      barPercentage: 0.7
+                    }
+                  ]
+                },
+                options: {
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: {
+                      labels: { color: '#f0f6fc', font: { size: 12 } }
+                    }
+                  },
+                  scales: {
+                    y: {
+                      beginAtZero: true,
+                      grid: { color: '#30363d' },
+                      ticks: { color: '#8b949e' }
+                    },
+                    x: {
+                      grid: { display: false },
+                      ticks: { color: '#8b949e' }
+                    }
+                  }
+                }
+              });
+            }
+
+            // Trend Chart
+            const trendCtx = document.getElementById('trendChart')?.getContext('2d');
+            if (trendCtx) {
+              new Chart(trendCtx, {
+                type: 'line',
+                data: {
+                  labels: ['2017', '2018', '2019', '2020', '2021'],
+                  datasets: [{
+                    label: 'Total Crashes',
+                    data: [12, 10, 14, 8, 13],
+                    borderColor: '#e63946',
+                    backgroundColor: 'rgba(230,57,70,0.1)',
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: '#e63946'
+                  }]
+                },
+                options: {
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: { labels: { color: '#f0f6fc' } }
+                  },
+                  scales: {
+                    y: {
+                      beginAtZero: true,
+                      grid: { color: '#30363d' },
+                      ticks: { color: '#8b949e' }
+                    },
+                    x: {
+                      grid: { display: false },
+                      ticks: { color: '#8b949e' }
+                    }
+                  }
+                }
+              });
+            }
+          }, 100);
+        })();
+      </script>
+    </body>
+    </html>
+    `;
   }
 
-  // ─── HELPER ──────────────────────────────────────────────────────
-  roundRect(ctx, x, y, w, h, r) {
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + w - r, y);
-    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-    ctx.lineTo(x + w, y + h - r);
-    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-    ctx.lineTo(x + r, y + h);
-    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-    ctx.lineTo(x, y + r);
-    ctx.quadraticCurveTo(x, y, x + r, y);
-    ctx.closePath();
+  generateManeuverBars(data) {
+    const maneuvers = [
+      { name: 'Not crossing at crosswalk', count: 22, color: '#e63946' },
+      { name: 'Crossing at crosswalk', count: 15, color: '#4361ee' },
+      { name: 'Moving w/ traffic on roadway', count: 8, color: '#f77f00' },
+      { name: 'Moving against traffic on roadway', count: 6, color: '#9b5de5' },
+      { name: 'Standing in roadway', count: 4, color: '#fcbf49' },
+      { name: 'Pushing or working on a vehicle', count: 2, color: '#2dc653' }
+    ];
+
+    const maxCount = Math.max(...maneuvers.map(m => m.count));
+
+    return maneuvers.map(m => `
+      <div class="category-item">
+        <div class="category-icon" style="border-color: ${m.color}; color: ${m.color};">
+          ${this.getManeuverIcon(m.name)}
+        </div>
+        <div class="category-name">${m.name}</div>
+        <div class="category-bar-container">
+          <div class="category-bar" style="--bar-color: ${m.color}; --bar-color-light: ${m.color}80; width: ${(m.count / maxCount) * 100}%"></div>
+        </div>
+        <div class="category-stats" style="color: ${m.color};">${m.count}</div>
+      </div>
+    `).join('');
+  }
+
+  generateHotspots(data) {
+    const hotspots = [
+      { location: 'Downtown', count: 12, rank: '#1', color: '#da3633' },
+      { location: 'Eastside', count: 9, rank: '#2', color: '#e85c0d' },
+      { location: 'Westside', count: 7, rank: '#3', color: '#e3b341' },
+      { location: 'North Ave', count: 5, rank: '#4', color: '#4361ee' },
+      { location: 'Southside', count: 4, rank: '#5', color: '#2dc653' }
+    ];
+
+    return hotspots.map(h => `
+      <div class="hotspot-card" style="border-color: ${h.color}40;">
+        <div class="hotspot-rank" style="background: ${h.color};">${h.rank}</div>
+        <div class="hotspot-name">${h.location}</div>
+        <div class="hotspot-value" style="color: ${h.color};">${h.count}</div>
+        <div class="hotspot-label">incidents</div>
+      </div>
+    `).join('');
+  }
+
+  getManeuverIcon(maneuver) {
+    const icons = {
+      'Not crossing at crosswalk': '🚶',
+      'Crossing at crosswalk': '🚦',
+      'Moving w/ traffic on roadway': '➡️',
+      'Moving against traffic on roadway': '⬅️',
+      'Standing in roadway': '⛔',
+      'Pushing or working on a vehicle': '🔧'
+    };
+    return icons[maneuver] || '⚠️';
+  }
+
+  getDefaultPedestrianData() {
+    return {
+      fatalities: [4, 3, 5, 2, 3],
+      seriousInjuries: [8, 7, 9, 6, 10],
+      totalCrashes: [12, 10, 14, 8, 13],
+      maneuvers: {
+        'Not crossing at crosswalk': 22,
+        'Crossing at crosswalk': 15,
+        'Moving w/ traffic on roadway': 8,
+        'Moving against traffic on roadway': 6,
+        'Standing in roadway': 4,
+        'Pushing or working on a vehicle': 2
+      }
+    };
   }
 }
 
