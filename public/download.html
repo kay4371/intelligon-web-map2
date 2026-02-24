@@ -169,11 +169,11 @@
           body: JSON.stringify({ email, reportId, action: 'report_requested', timestamp: new Date().toISOString() })
         }).catch(() => {}); // Don't block if tracking fails
 
-        // ✅ NEW: Send report to email instead of direct download
-        const response = await fetch('/api/reports/send-to-email', {
+        // ✅ Send the already-generated report to this user's email
+        const response = await fetch('/intelligence/download', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, reportType: 'weekly' })
+          body: JSON.stringify({ email, reportId })
         });
 
         const result = await response.json();
