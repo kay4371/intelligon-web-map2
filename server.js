@@ -911,12 +911,12 @@ app.post('/api/cron/whatsapp-report', cronAuth, async (req, res) => {
       console.log('📱 Step 4/4: Sending to WhatsApp...');
       
       // First: Send the beautiful infographic
-      const imageBase64 = infographicBuffer.toString('base64');
-      const imageMediaString = `data:image/png;name=intelligence-brief.png;base64,${imageBase64}`;
+      
+      
       
       await whatsappService.sendImage(
         WHATSAPP_REPORT_RECIPIENT,
-        imageMediaString,
+        infographicBuffer,
         `🛡️ *WEEKLY INTELLIGENCE BRIEF*\n\nVisual summary of security incidents this week.`
       );
       
