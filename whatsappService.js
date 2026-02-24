@@ -1,7 +1,6 @@
-
-
 // whatsappService.js - COMPLETE WITH FIXED MEDIA UPLOAD
 const axios = require('axios');
+const FormData = require('form-data');
 
 class WhatsAppService {
   constructor(apiToken, groqService = null) {
@@ -363,27 +362,63 @@ filterSecurityMessagesLight(messages) {
 
   /**
    * ✅ Send image via WhatsApp
+   * Accepts either a Buffer (preferred) or a base64 data URI string
    */
-  async sendImage(recipient, imageMediaString, caption = '') {
+  async sendImage(recipient, imageData, caption = '') {
     try {
       console.log(`📸 Sending image to: ${recipient}`);
-      
-      const response = await this.axiosInstance.post('/messages/image', {
-        to: recipient,
-        media: imageMediaString,
-        caption: caption
+
+      let buffer;
+
+      // Handle both Buffer and base64 data URI
+      if (Buffer.isBuffer(imageData)) {
+        buffer = imageData;
+      } else if (typeof imageData === 'string' && imageData.startsWith('data:')) {
+        const base64 = imageData.split(',')[1];
+        buffer = Buffer.from(base64, 'base64');
+      } else {
+        throw new Error('imageData must be a Buffer or base64 data URI');
+      }
+
+      console.log(`   📦 Image size: ${(buffer.length / 1024).toFixed(1)} KB`);
+
+      // Upload via multipart form — Whapi accepts this reliably
+      const form = new FormData();
+      form.append('to', recipient);
+      form.append('caption', caption);
+      form.append('media', buffer, {
+        filename: 'intelligence-brief.png',
+        contentType: 'image/png',
       });
-      
+
+      const response = await axios.post(
+        `${this.baseURL}/messages/image`,
+        form,
+        {
+          headers: {
+            ...form.getHeaders(),
+            'Authorization': `Bearer ${this.token}`,
+          },
+          maxContentLength: Infinity,
+          maxBodyLength: Infinity,
+          timeout: 60000,
+        }
+      );
+
       console.log(`✅ Image sent: ${response.data.id}`);
-      
+
       return {
         success: true,
         id: response.data.id,
         timestamp: response.data.timestamp
       };
-      
+
     } catch (error) {
       console.error('❌ Image send failed:', error.message);
+      if (error.response) {
+        console.error('   Status:', error.response.status);
+        console.error('   Response:', JSON.stringify(error.response.data, null, 2));
+      }
       throw new Error(`Failed to send image: ${error.message}`);
     }
   }
