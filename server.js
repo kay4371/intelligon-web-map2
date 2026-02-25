@@ -923,7 +923,7 @@ app.post('/api/cron/whatsapp-report', cronAuth, async (req, res) => {
       console.log('   ✅ Infographic sent');
       
       // Second: Send message with download link
-      const downloadUrl = `https://intelligon-web-map2.onrender.com/intelligence/download?id=${reportId}`;
+      const downloadUrl = `https://intelligon.suntrenia.com/intelligence/download?id=${reportId}`;
       // const downloadUrl = `https://intelligon-web-map-new-with-trigger.onrender.com/intelligence/download?id=${reportId}`;
       const message = `📊 *FULL DETAILED REPORT AVAILABLE*\n\n` +
         `✨ Get the complete 7-page PDF report with:\n` +
@@ -1704,26 +1704,75 @@ app.post('/api/reports/send-to-email', async (req, res) => {
 // ============================================
 // CPA Tracking Endpoint
 // ============================================
+// ============================================
+// CPA / Conversion Tracking
+// Fires on: gated_download_delivered, report_delivered, premium_payment_confirmed
+// Integrations: PostHog analytics + optional webhook to CPA network
+// ⚠️  All integrations wrapped in .catch(() => {}) — will NEVER break main flow
+// ============================================
 app.post('/api/cpa/track', async (req, res) => {
   try {
-    const { email, action, timestamp } = req.body;
-    
+    const { email, action, timestamp, paystackRef, amount } = req.body;
+
+    // ── Always log to console ──────────────────────────────────────
     console.log(`💰 ========================================`);
-    console.log(`💰 CPA CONVERSION TRACKED`);
-    console.log(`========================================`);
+    console.log(`💰 CPA CONVERSION: ${action || 'signup'}`);
     console.log(`📧 Email: ${email}`);
-    console.log(`🎯 Action: ${action || 'signup'}`);
+    if (amount)      console.log(`💵 Amount: ₦${amount}`);
+    if (paystackRef) console.log(`🔖 Ref: ${paystackRef}`);
     console.log(`⏰ Time: ${timestamp || new Date().toISOString()}`);
     console.log(`========================================\n`);
-    
-    // TODO: Integrate with CPA network
-    // Example: CPALead, MaxBounty, etc.
-    
+
+    // ── PostHog Analytics (free, instant setup) ───────────────────
+    // To enable: set POSTHOG_API_KEY in your Render env vars
+    // Get key free at: https://posthog.com
+    if (process.env.POSTHOG_API_KEY && email) {
+      axios.post('https://app.posthog.com/capture/', {
+        api_key: process.env.POSTHOG_API_KEY,
+        distinct_id: email,
+        event: action || 'conversion',
+        properties: {
+          email,
+          action,
+          amount: amount || null,
+          paystackRef: paystackRef || null,
+          timestamp: timestamp || new Date().toISOString(),
+          source: 'suntrenia'
+        }
+      }).catch(err => console.warn('⚠️ PostHog track failed (non-fatal):', err.message));
+    }
+
+    // ── CPA Network Webhook (optional) ────────────────────────────
+    // To enable: set CPA_WEBHOOK_URL in your Render env vars
+    // This fires a POST to your CPA network's conversion pixel/postback URL
+    // Most networks (CPAGrip, AdWork Media, MaxBounty) provide a postback URL
+    // Format example: https://www.cpagrip.com/postback?offer_id=XXX&aff_id=YYY&goal=email_submit
+    if (process.env.CPA_WEBHOOK_URL && email) {
+      // Only fire CPA postback for email collection events (not premium payments)
+      const cpaEligibleActions = ['gated_download_delivered', 'report_delivered'];
+      if (cpaEligibleActions.includes(action)) {
+        const webhookUrl = process.env.CPA_WEBHOOK_URL
+          .replace('{email}', encodeURIComponent(email))
+          .replace('{action}', encodeURIComponent(action || ''))
+          .replace('{timestamp}', encodeURIComponent(timestamp || new Date().toISOString()));
+
+        axios.post(webhookUrl, { email, action, timestamp }, {
+          timeout: 5000,
+          headers: { 'Content-Type': 'application/json' }
+        })
+        .then(() => console.log(`✅ CPA postback fired for: ${email}`))
+        .catch(err => console.warn(`⚠️ CPA postback failed (non-fatal): ${err.message}`));
+      }
+    }
+
+    // ── Always respond success — tracking must never block main flow ──
     res.json({ success: true, message: 'Tracked' });
-    
+
   } catch (error) {
-    console.error('❌ CPA tracking error:', error);
-    res.status(500).json({ success: false });
+    // Even if something unexpected fails, return success
+    // Tracking must NEVER break the user experience
+    console.error('❌ CPA tracking error (non-fatal):', error.message);
+    res.json({ success: true, message: 'Tracked' });
   }
 });
 // ============================================
