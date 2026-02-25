@@ -1775,6 +1775,58 @@ app.post('/api/cpa/track', async (req, res) => {
     res.json({ success: true, message: 'Tracked' });
   }
 });
+
+// ============================================
+// CPAGrip Global Postback Receiver
+// CPAGrip POSTs here when a user completes an offer
+// Verifies password, logs the conversion, credits the lead
+// ============================================
+app.post('/api/cpa/postback', async (req, res) => {
+  try {
+    const { password, payout, offer_id, tracking_id } = req.body;
+
+    // Verify it is genuinely from CPAGrip
+    const expectedPassword = process.env.CPA_POSTBACK_PASSWORD || 'suntrenia_cpa_2026';
+    if (password !== expectedPassword) {
+      console.warn('CPA Postback: Invalid password attempt');
+      return res.status(403).send('Access Denied.');
+    }
+
+    // Log the conversion
+    console.log('=======================================');
+    console.log('CPAGRIP POSTBACK RECEIVED');
+    console.log('Offer ID:    ' + offer_id);
+    console.log('Tracking ID: ' + tracking_id);
+    console.log('Payout:      $' + payout);
+    console.log('Time:        ' + new Date().toISOString());
+    console.log('=======================================');
+
+    // Fire to PostHog if configured
+    if (process.env.POSTHOG_API_KEY) {
+      axios.post('https://app.posthog.com/capture/', {
+        api_key: process.env.POSTHOG_API_KEY,
+        distinct_id: tracking_id || 'unknown',
+        event: 'cpagrip_conversion',
+        properties: {
+          offer_id,
+          payout: parseFloat(payout) || 0,
+          tracking_id,
+          source: 'cpagrip_postback',
+          timestamp: new Date().toISOString()
+        }
+      }).catch(function(err) { console.warn('PostHog postback log failed (non-fatal): ' + err.message); });
+    }
+
+    // CPAGrip expects a 200 OK response
+    res.status(200).send('OK');
+
+  } catch (error) {
+    console.error('CPA Postback error: ' + error.message);
+    // Still return 200 so CPAGrip does not retry endlessly
+    res.status(200).send('OK');
+  }
+});
+
 // ============================================
 // PDF Download Endpoint
 // ============================================
