@@ -1298,16 +1298,10 @@ app.get('/intelligence/download', (req, res) => {
     return res.status(404).send('Report not found or expired');
   }
 
-  // Check memory cache first, then disk
-  const inMemory = !!global.reportCache?.[reportId];
-  const filePath = path.join(__dirname, 'reports', `${reportId}.pdf`);
-  const onDisk   = fs.existsSync(filePath);
-
-  if (!inMemory && !onDisk) {
-    return res.status(404).send('Report not found or expired. Please request a new report.');
-  }
-
-  // ✅ Serve the email-gated download page
+  // Always serve the download page — even if report is not in memory/disk
+  // Render free tier wipes memory on spin-down, so we cannot rely on cache
+  // The POST handler will regenerate the report fresh when user submits email
+  console.log(`📥 Download page requested for reportId: ${reportId}`);
   res.sendFile(path.join(__dirname, 'public', 'download.html'));
 });
 
@@ -1352,7 +1346,22 @@ app.post('/intelligence/download', async (req, res) => {
     }
 
     if (!pdfBuffer) {
-      return res.status(404).json({ success: false, error: 'Report not found or expired. Please request a new report.' });
+      // Report not in memory or disk — Render free tier wiped it on spin-down
+      // Regenerate a fresh report on the fly so user still gets their report
+      console.log(`⚠️ Report ${reportId} not found in cache — regenerating fresh report for ${email}`);
+      try {
+        const incidents = global.cachedIncidents || [];
+        const InfographicGenerator = require('./infographicGenerator');
+        const infGen = new InfographicGenerator();
+        const { PDFReportService } = require('./pdfReportService');
+        const freshPdfService = new PDFReportService();
+        const doc = freshPdfService.generateReport(incidents, { includeAIAnalysis: false });
+        pdfBuffer = await freshPdfService.streamToBuffer(doc);
+        console.log(`✅ Fresh report regenerated (${pdfBuffer.length} bytes)`);
+      } catch (regenErr) {
+        console.error(`❌ Regeneration failed: ${regenErr.message}`);
+        return res.status(404).json({ success: false, error: 'Report temporarily unavailable. Please try again in a few minutes.' });
+      }
     }
 
     console.log(`\n📧 Gated download — sending report to: ${email}`);
