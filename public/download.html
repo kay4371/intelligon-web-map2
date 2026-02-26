@@ -142,6 +142,20 @@
       </div>
       <button type="submit" class="download-btn">📥 Download Report Now</button>
     </form>
+    <!-- Adsterra 300x250 Banner — shown while user waits for email -->
+    <div style="margin-top: 25px; text-align: center;">
+      <script>
+        atOptions = {
+          'key' : '5eeb4797d7b6dc12ad9b66cd7b52ccca',
+          'format' : 'iframe',
+          'height' : 250,
+          'width' : 300,
+          'params' : {}
+        };
+      </script>
+      <script src="https://www.highperformanceformat.com/5eeb4797d7b6dc12ad9b66cd7b52ccca/invoke.js"></script>
+    </div>
+
     <div style="margin-top: 25px; padding: 20px; background: rgba(233,69,96,0.08); border: 1px solid rgba(233,69,96,0.25); border-radius: 16px; text-align: center;">
       <p style="font-size: 0.85em; color: #ffffff90; margin-bottom: 8px;">⚡ Want this report delivered automatically every week?</p>
       <a href="https://intelligon.suntrenia.com/premium" 
@@ -195,7 +209,7 @@
             <p style="color: #ffffff90;">We've sent your intelligence report to:</p>
             <p style="color: #fff; font-weight: bold; margin-top: 8px;">${email}</p>
             <p style="color: #ffffff60; font-size: 0.85em; margin-top: 10px;">Please check your inbox and spam folder.</p>
-            
+            <div id="adsterra-success" style="margin: 20px 0; text-align: center;"></div>
             <div style="margin-top: 20px; padding: 15px; background: rgba(233,69,96,0.1); border: 1px solid rgba(233,69,96,0.3); border-radius: 12px;">
               <p style="font-size: 0.85em; color: #ffffff90; margin-bottom: 10px;">🔔 <strong style="color:#fff;">Never miss a report again.</strong> Subscribe to get this delivered to your inbox automatically every week.</p>
               <a href="https://intelligon.suntrenia.com/premium" 
@@ -205,6 +219,15 @@
             </div>
           </div>
         `;
+
+          // Inject Adsterra ad into success state safely (cannot use script tags inside template literals)
+          const adSlot = document.getElementById('adsterra-success');
+          if (adSlot) {
+            window.atOptions = { 'key': '5eeb4797d7b6dc12ad9b66cd7b52ccca', 'format': 'iframe', 'height': 250, 'width': 300, 'params': {} };
+            const adScript = document.createElement('script');
+            adScript.src = 'https://www.highperformanceformat.com/5eeb4797d7b6dc12ad9b66cd7b52ccca/invoke.js';
+            adSlot.appendChild(adScript);
+          }
         } else {
           // ✅ KEEP: Track failed attempt
           await fetch('/api/cpa/track', {
